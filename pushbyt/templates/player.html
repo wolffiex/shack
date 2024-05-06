@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+{% with PLAYER_ID="player-div" CONTROLS_ID="controls-div" %}
+
+<head>
+  <script type="module">
+    import {Player} from '/static/js/player.js';
+    // Use the imported module here
+    const player = new Player("{{ PLAYER_ID }}", "{{ CONTROLS_ID }}", {{ frame_count }})
+    player.play();
+  </script>
+  <style>
+    .container {
+      display: flex;
+    }
+
+    .frame-container {
+      position: relative;
+      width: 640px;
+      height: 320px;
+    }
+
+    .frame-container img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none;
+    }
+
+    .frame-container img.shown {
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      margin-left: 10px;
+    }
+
+    .controls button {
+      margin-bottom: 5px;
+    }
+
+    .controls .pause-label {
+      display: none;
+    }
+
+    .controls.playing .play-label {
+      display: none;
+    }
+
+    .controls.playing .pause-label {
+      display: inline;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>{{ title }}</h1>
+  <div class="container">
+    <div class="frame-container" id="{{ PLAYER_ID }}">
+      {% for frame in frames %}
+      <img src="data:image/webp;base64,{{ frame }}" alt="Frame">
+      {% endfor %}
+    </div>
+    <div id="{{CONTROLS_ID}}" class="controls">
+      <button name="play-pause">
+        <span class="play-label">Play</span>
+        <span class="pause-label">Pause</span>
+      </button>
+      <input name="inputField" type="number" min="1" max="600" value="1">
+    </div>
+  </div>
+</body>
+{% endwith %}
+
+</html>
