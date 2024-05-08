@@ -11,6 +11,7 @@ from pushbyt.animation.rays2 import clock_rays
 from pathlib import Path
 from django.utils import timezone
 from pushbyt.models import Animation
+from ha.utils import tidbyt_turn_on
 import logging
 
 
@@ -36,27 +37,40 @@ def generate(_):
         return HttpResponse("Failed to acquire lock", status=500)
 
     try:
-        start_time = get_next_animation_time()
-        logger.info(f'next animation time {start_time}')
-        if start_time:
-            os.makedirs(RENDER_DIR, exist_ok=True)
-            create_animations(start_time)
+        if is_running():
+            start_time = get_next_animation_time()
+            logger.info(f'next animation time {start_time}')
+            if start_time:
+                generate_filler(start_time)
+        else:
+            if is_present():
+                os.makedirs(RENDER_DIR, exist_ok=True)
+                generate_welcome()
+                tidbyt_turn_on()
+
+
         return HttpResponse("Generated successfully")
     finally:
         with transaction.atomic():
             lock.acquired = False
             lock.save()
 
-
-def get_next_animation_time() -> Optional[datetime]:
+def is_running() -> bool:
     now = timezone.localtime()
 
     one_minute_ago = now - timedelta(minutes=1)
 
     # If we haven't gotten a request in the last minute, then don't generate
-    if not Animation.objects.filter(served_at__gt=one_minute_ago).exists():
-        return
+    return Animation.objects.filter(served_at__gt=one_minute_ago).exists()
 
+def is_present() -> bool:
+    return False
+
+def generate_welcome():
+    pass
+
+def get_next_animation_time() -> Optional[datetime]:
+    now = timezone.localtime()
     last_animation = Animation.objects.latest("start_time")
     next_time = max(last_animation.start_time_local, now)
     # No need to generate if we have animations more than two minutes hence
@@ -66,7 +80,8 @@ def get_next_animation_time() -> Optional[datetime]:
     return Animation.align_time(next_time)
 
 
-def create_animations(start_time: datetime):
+def generate_filler(start_time: datetime):
+    os.makedirs(RENDER_DIR, exist_ok=True)
     end_time = start_time + timedelta(minutes=5)
     frames = clock_rays()
     next(frames)
