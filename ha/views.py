@@ -4,14 +4,33 @@ import requests
 import os
 from settings import HA_HOST
 import logging
+import psycopg2
 
 logger = logging.getLogger(__name__)
 
 ha_api_url = f"http://{HA_HOST}:8123/api"
 ha_access_token = os.environ["HA_ACCESS_TOKEN"]
+conn = psycopg2.connect("dbname=monitoring user=adam host=spine password=adam")
 
 def dashboard(request):
-    return render(request, "dashboard.html", {})
+    data =  latest_air()
+    return render(request, "dashboard.html", data)
+
+def latest_air():
+    with conn.cursor() as cur:
+        cur.execute(
+            "select co2, temperature, humidity from air order by time desc limit 1;"
+        )
+        result = cur.fetchone()
+        assert result
+        co2, celsius, humidity = result
+
+    farenheight = celsius *  9/5 + 32
+    return {
+        "co2": f"{co2} ppm",
+        "temperature": f"{round(farenheight)}° F",
+        "humidity": f"{round(humidity)} %",
+    }
 
 def start_tidbyt(_):
     current_state = get_switch_state()
