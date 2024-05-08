@@ -3,9 +3,6 @@
 <html>
 
 <head>
-  <script type="module">
-    console.log('hiiii, {{ IMG_ID }}')
-  </script>
   <style>
     table {
       border-collapse: collapse;
@@ -42,7 +39,7 @@
         Heat power level:
       </td>
       <td>
-        <progress id="power-gauge" value="0.333" max="1500"></progress>
+        <progress id="power-gauge" value="{{ heat_power }}" max="1000"></progress>
       </td>
     </tr>
   </table>
@@ -50,12 +47,12 @@
     <legend>Controls</legend>
     <div>
       <label>
-        <input type="checkbox"> Tidbyt switch
+        <input type="checkbox" {% if tidbyt_switch %}checked{% endif %}> Tidbyt switch
       </label>
     </div>
     <div>
       <label>
-        <input type="checkbox"> Heat switch
+        <input type="checkbox" {% if heat_switch %}checked{% endif %}> Heat switch
       </label>
     </div>
     <div>
