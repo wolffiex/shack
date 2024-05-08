@@ -7,6 +7,18 @@
     console.log('hiiii, {{ IMG_ID }}')
   </script>
   <style>
+    table {
+      border-collapse: collapse;
+    }
+
+    td {
+      padding: 4px;
+    }
+
+    td:first-child {
+      font-weight: bold;
+      padding-right: 4rem;
+    }
   </style>
 </head>
 
@@ -14,22 +26,42 @@
   <h1>Shack</h1>
   <table>
     <tr>
-      <td>Co2</td>
+      <td>Co2:</td>
       <td>{{ co2 }}</td>
     </tr>
     <tr>
-      <td>Temperature</td>
+      <td>Temperature:</td>
       <td>{{ temperature }}</td>
     </tr>
     <tr>
-      <td>Humidity</td>
+      <td>Humidity:</td>
       <td>{{ humidity }}</td>
     </tr>
+    <tr>
+      <td>
+        Heat power level:
+      </td>
+      <td>
+        <progress id="power-gauge" value="0.333" max="1500"></progress>
+      </td>
+    </tr>
   </table>
-  <div>
-    <input type="checkbox">heat</input>
-    <input type="checkbox">tidbyt</input>
-  </div>
+  <fieldset>
+    <legend>Controls</legend>
+    <div>
+      <label>
+        <input type="checkbox"> Tidbyt switch
+      </label>
+    </div>
+    <div>
+      <label>
+        <input type="checkbox"> Heat switch
+      </label>
+    </div>
+    <div>
+      <button>Heat power</button>
+    </div>
+  </fieldset>
   <div>
     <h2>Timer</h2>
   </div>
