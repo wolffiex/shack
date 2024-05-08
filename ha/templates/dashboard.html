@@ -74,6 +74,14 @@
     <button>Start</button>
     </div>
   </div>
+  <div>
+    <h2>Presence</h2>
+    <ul>
+    {% for start_time, duration in motion_spans %}
+        <p>{{ start_time | timesince }} ago for {{ duration.total_seconds |floatformat:1}} seconds</p>
+    {% endfor %}
+    </ul>
+  </div>
 </body>
 
 </html>

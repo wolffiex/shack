@@ -39,8 +39,8 @@ def post_ha_action(api, action, entity_id):
 
 async def dashboard(request):
     ha_data = await ha_info()
-    air_data = latest_air()
-    return render(request, "dashboard.html", ha_data | air_data)
+    monitoring_data = get_monitoring()
+    return render(request, "dashboard.html", ha_data | monitoring_data)
 
 
 async def ha_info():
@@ -73,23 +73,40 @@ def convert_switch_state(switch_state):
     return switch_state == "on"
 
 
-def latest_air():
+def get_monitoring():
     with psycopg2.connect(
         "dbname=monitoring user=adam host=spine password=adam"
     ) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "select co2, temperature, humidity from air order by time desc limit 1;"
+                "select co2, temperature, humidity, time from air order by time desc limit 1;"
             )
             result = cur.fetchone()
             assert result
-            co2, celsius, humidity = result
+            co2, celsius, humidity, air_time = result
+
+            cur.execute("""
+                SELECT time, detected FROm motion ORDER BY time desc LIMIT 10
+            """)
+
+            results = cur.fetchall()
+
+            motion_spans = []
+            current_span_end = None
+            for time, detected in results:
+                if not detected:
+                    current_span_end = time
+                elif current_span_end:
+                    motion_spans.append((time, current_span_end-time))
+                    current_span_end = None
 
     farenheight = celsius * 9 / 5 + 32
     return {
         "co2": f"{co2} ppm",
         "temperature": f"{round(farenheight)}° F",
         "humidity": f"{round(humidity)} %",
+        "air_time": air_time,
+        "motion_spans": motion_spans,
     }
 
 
