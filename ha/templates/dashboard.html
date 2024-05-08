@@ -16,6 +16,10 @@
       font-weight: bold;
       padding-right: 4rem;
     }
+
+    fieldset>div {
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 
@@ -46,17 +50,19 @@
   <fieldset>
     <legend>Controls</legend>
     <div>
-      <label>
-        <input type="checkbox" {% if tidbyt_switch %}checked{% endif %}> Tidbyt switch
-      </label>
+      <a href="{% url 'control' name='tidbyt_switch'%}?action={% if tidbyt_switch %}turn_off{% else %}turn_on{% endif %}">
+        <span>{% if tidbyt_switch %}✅{% else %}❌{% endif %}</span> Tidbyt switch
+      </a>
     </div>
     <div>
-      <label>
-        <input type="checkbox" {% if heat_switch %}checked{% endif %}> Heat switch
-      </label>
+      <a href="{% url 'control' name='heat_switch'%}?action={% if heat_switch %}turn_off{% else %}turn_on{% endif %}">
+        <span>{% if heat_switch %}✅{% else %}❌{% endif %}</span> Heat switch
+      </a>
     </div>
     <div>
-      <button>Heat power</button>
+      <a href="{% url 'control' name='heat_power'%}?action=turn_on">
+        <span>🔥</span> Heat power
+      </a>
     </div>
   </fieldset>
   <div>
