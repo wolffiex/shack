@@ -20,7 +20,6 @@ CONTROLS = {
 
 
 def control(request, name):
-    print(f"control {name}")
     api, entity_id = CONTROLS[name]
     action = request.GET.get("action", "")
     post_ha_action(api, action, entity_id)
