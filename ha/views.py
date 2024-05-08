@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 ha_api_url = f"http://{HA_HOST}:8123/api"
 ha_access_token = os.environ["HA_ACCESS_TOKEN"]
 
+def dashboard(request):
+    return render(request, "dashboard.html", {})
+
 def start_tidbyt(_):
     current_state = get_switch_state()
     if current_state == "off": 
