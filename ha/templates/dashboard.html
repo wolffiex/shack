@@ -4,6 +4,11 @@
 
 <head>
   <style>
+    .container {
+      width: fit-content;
+      /* or */
+      /* display: inline-block; */
+    }
     table {
       border-collapse: collapse;
     }
@@ -25,62 +30,65 @@
 
 <body>
   <h1>Shack</h1>
-  <table>
-    <tr>
-      <td>Co2:</td>
-      <td>{{ co2 }}</td>
-    </tr>
-    <tr>
-      <td>Temperature:</td>
-      <td>{{ temperature }}</td>
-    </tr>
-    <tr>
-      <td>Humidity:</td>
-      <td>{{ humidity }}</td>
-    </tr>
-    <tr>
-      <td>
-        Heat power level:
-      </td>
-      <td>
-        <progress id="power-gauge" value="{{ heat_power }}" max="1000"></progress>
-      </td>
-    </tr>
-  </table>
-  <fieldset>
-    <legend>Controls</legend>
+  <div class="container">
+    <table>
+      <tr>
+        <td>Co2:</td>
+        <td>{{ co2 }}</td>
+      </tr>
+      <tr>
+        <td>Temperature:</td>
+        <td>{{ temperature }}</td>
+      </tr>
+      <tr>
+        <td>Humidity:</td>
+        <td>{{ humidity }}</td>
+      </tr>
+      <tr>
+        <td>
+          Heat power level:
+        </td>
+        <td>
+          <progress id="power-gauge" value="{{ heat_power }}" max="1000"></progress>
+        </td>
+      </tr>
+    </table>
+    <fieldset>
+      <legend>Controls</legend>
+      <div>
+        <a
+          href="{% url 'control' name='tidbyt_switch'%}?action={% if tidbyt_switch %}turn_off{% else %}turn_on{% endif %}">
+          <span>{% if tidbyt_switch %}✅{% else %}❌{% endif %}</span> Tidbyt switch
+        </a>
+      </div>
+      <div>
+        <a href="{% url 'control' name='heat_switch'%}?action={% if heat_switch %}turn_off{% else %}turn_on{% endif %}">
+          <span>{% if heat_switch %}✅{% else %}❌{% endif %}</span> Heat switch
+        </a>
+      </div>
+      <div>
+        <a href="{% url 'control' name='heat_power'%}?action=turn_on">
+          <span>🔥</span> Heat power
+        </a>
+      </div>
+    </fieldset>
     <div>
-      <a href="{% url 'control' name='tidbyt_switch'%}?action={% if tidbyt_switch %}turn_off{% else %}turn_on{% endif %}">
-        <span>{% if tidbyt_switch %}✅{% else %}❌{% endif %}</span> Tidbyt switch
-      </a>
+      <h2>Timer</h2>
+      <div>
+        <input type="range" min="0" max="100" value="50" id="mySlider">
+      </div>
+      <div>
+        <button>Start</button>
+      </div>
     </div>
     <div>
-      <a href="{% url 'control' name='heat_switch'%}?action={% if heat_switch %}turn_off{% else %}turn_on{% endif %}">
-        <span>{% if heat_switch %}✅{% else %}❌{% endif %}</span> Heat switch
-      </a>
-    </div>
-    <div>
-      <a href="{% url 'control' name='heat_power'%}?action=turn_on">
-        <span>🔥</span> Heat power
-      </a>
-    </div>
-  </fieldset>
-  <div>
-    <h2>Timer</h2>
-    <div>
-    <input type="range" min="0" max="100" value="50" id="mySlider">
-    </div>
-    <div>
-    <button>Start</button>
-    </div>
-  </div>
-  <div>
-    <h2>Presence</h2>
-    <ul>
-    {% for start_time, duration in motion_spans %}
+      <h2>Presence</h2>
+      <ul>
+        {% for start_time, duration in motion_spans %}
         <p>{{ start_time | timesince }} ago for {{ duration.total_seconds |floatformat:1}} seconds</p>
-    {% endfor %}
-    </ul>
+        {% endfor %}
+      </ul>
+    </div>
   </div>
 </body>
 
