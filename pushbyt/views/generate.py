@@ -110,7 +110,7 @@ def generate_filler(start_time: datetime):
     Animation.objects.bulk_create(animations)
 
 
-def render(frames, file_path):
+def render(frames, file_path, loop=False):
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         in_files = [

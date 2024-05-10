@@ -11,7 +11,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
 def spotify_env():
     return {
         "redirect_uri": os.environ["SPOTIFY_REDIRECT_URI"],
@@ -54,6 +53,7 @@ def callback(request):
 
     return HttpResponse(f"export SPOTIFY_TOKEN='{access_token}'")
 
+
 def player(_):
     headers = {
         "Authorization": f"Bearer {os.environ['SPOTIFY_TOKEN']}",
@@ -64,27 +64,25 @@ def player(_):
         return
 
     # Extract track title
-    track_title = data['item']['name']
+    track_title = data["item"]["name"]
 
-    artist_names = ", ".join(artist['name'] for artist in data['item']['artists'])
+    artist_names = ", ".join(artist["name"] for artist in data["item"]["artists"])
 
     art_url = None
-    for image in data['item']['album']['images']:
-        if image['height'] == 64 and image['width'] == 64:
-            art_url = image['url']
+    for image in data["item"]["album"]["images"]:
+        if image["height"] == 64 and image["width"] == 64:
+            art_url = image["url"]
             break
-
 
     print("Track Title:", track_title)
     print("Artist Names:", artist_names)
     print("64x64 Icon URL:", art_url)
     frames = [*generate(track_title, artist_names, art_url)]
-    last_animation = Animation.objects.latest("start_time")
-    logger.info(last_animation)
-    anim_start_time = Animation.align_time(last_animation.start_time_local)
-    file_path = (
-        Path("render") / anim_start_time.strftime("%j-%H-%M-%S")
-    ).with_suffix(".webp")
+    # last_animation = Animation.objects.latest("start_time")
+    # anim_start_time = Animation.align_time(last_animation.start_time_local)
+    # file_path = (
+    #     Path("render") / anim_start_time.strftime("%j-%H-%M-%S")
+    # ).with_suffix(".webp")
+    file_path = (Path("render") / "spotify").with_suffix(".webp")
     render(frames, file_path)
     return HttpResponse(file_path)
-
