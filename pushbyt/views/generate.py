@@ -36,20 +36,23 @@ def generate(_):
     except OperationalError:
         return HttpResponse("Failed to acquire lock", status=500)
 
+    result = "Nothing to do"
     try:
         if is_running():
             start_time = get_next_animation_time()
             logger.info(f'next animation time {start_time}')
             if start_time:
                 generate_filler(start_time)
+                result = "Generated rays"
         else:
+            result = "Not running"
             if is_present():
                 os.makedirs(RENDER_DIR, exist_ok=True)
                 generate_welcome()
                 tidbyt_turn_on()
 
 
-        return HttpResponse("Generated successfully")
+        return HttpResponse(result)
     finally:
         with transaction.atomic():
             lock.acquired = False
@@ -124,5 +127,10 @@ def render(frames, file_path):
 
 def convert_frame(frame_dir: Path, frame_num: int, frame: Image.Image) -> Path:
     frame_file = frame_dir / f"frame{frame_num:04d}.webp"
-    frame.save(frame_file, "WebP", quality=100)
-    return frame_file
+    try:
+        frame.save(frame_file, "WebP", quality=100)
+        return frame_file
+    except Exception as e:
+        logging.error(f"Error encoding frame {frame_num}: {e}")
+        logging.error(f"Frame size: {frame.size}, Frame mode: {frame.mode}")
+        raise
