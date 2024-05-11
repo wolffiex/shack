@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from django.templatetags.static import static
 from django.db.models import Q, JSONField, UniqueConstraint
+from .api_token import ApiToken
 
 
 class Animation(models.Model):

@@ -1,4 +1,6 @@
 from django.shortcuts import redirect
+from django.utils import timezone
+from datetime import timedelta
 from django.http import HttpResponse
 from pushbyt.animation.now_playing import generate
 from pushbyt.views.generate import render
@@ -8,8 +10,13 @@ from urllib.parse import urlencode
 import requests
 import os
 import logging
+import base64
+from pushbyt.models import ApiToken
 
 logger = logging.getLogger(__name__)
+
+
+TOKEN_URL = "https://accounts.spotify.com/api/token"
 
 
 def spotify_env():
@@ -38,10 +45,9 @@ def login(_):
 
 def callback(request):
     code = request.GET.get("code")
-    token_url = "https://accounts.spotify.com/api/token"
     spotify = spotify_env()
 
-    token_data = {
+    request_data = {
         "grant_type": "authorization_code",
         "code": code,
         "redirect_uri": spotify["redirect_uri"],
@@ -49,20 +55,52 @@ def callback(request):
         "client_secret": spotify["client_secret"],
     }
 
-    response = requests.post(token_url, data=token_data)
+    response = requests.post(TOKEN_URL, data=request_data)
     response.raise_for_status()
-    logger.info(response)
-    logger.info(response.json())
-    access_token = response.json()["access_token"]
+    token = ApiToken(
+        access_token=response.json()["access_token"],
+        refresh_token=response.json()["refresh_token"],
+        expires_in=response.json()["expires_in"],
+    )
+    token.save()
+    return redirect("dashboard")
 
-    return HttpResponse(f"export SPOTIFY_TOKEN='{access_token}'")
+
+def get_access_token() -> str:
+    token = ApiToken.objects.latest("created_at")
+    if token.updated_at + timedelta(seconds=token.expires_in) < timezone.now():
+        logger.info("Refreshing Spotify access")
+        spotify = spotify_env()
+
+        client_id = spotify["client_id"]
+        client_secret = spotify["client_secret"]
+
+        auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+
+        request_data = {
+            "grant_type": "refresh_token",
+            "refresh_token": token.refresh_token,
+        }
+        headers = {
+            "Authorization": f"Basic {auth_header}",
+        }
+        response = requests.post(TOKEN_URL, headers=headers, data=request_data)
+        response.raise_for_status()
+        token.access_token = response.json()["access_token"]
+        token.expires_in = response.json()["expires_in"]
+        token.save()
+    return token.access_token
 
 
-def player(_):
+def now_playing():
+    access_token = get_access_token()
     headers = {
-        "Authorization": f"Bearer {os.environ['SPOTIFY_TOKEN']}",
+        "Authorization": f"Bearer {access_token}",
     }
     response = requests.get("https://api.spotify.com/v1/me/player", headers=headers)
+    response.raise_for_status()
+    if not response.text.strip():
+        return
     data = response.json()
     if not data["device"]["is_active"]:
         return
@@ -78,10 +116,17 @@ def player(_):
             art_url = image["url"]
             break
 
-    print("Track Title:", track_title)
-    print("Artist Names:", artist_names)
-    print("64x64 Icon URL:", art_url)
-    frames = [*generate(track_title, artist_names, art_url)]
+    return {
+        "track": track_title,
+        "artist": artist_names,
+        "art": art_url,
+    }
+
+
+def player(_):
+    track_info = now_playing()
+    assert track_info
+    frames = [*generate(track_info["title"], track_info["artist"], track_info["art"])]
     # last_animation = Animation.objects.latest("start_time")
     # anim_start_time = Animation.align_time(last_animation.start_time_local)
     # file_path = (
