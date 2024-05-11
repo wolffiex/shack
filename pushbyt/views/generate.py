@@ -105,6 +105,7 @@ def generate_filler(start_time: datetime):
             Animation(
                 file_path=file_path,
                 start_time=anim_start_time,
+                source=Animation.Source.RAYS,
             )
         )
     Animation.objects.bulk_create(animations)

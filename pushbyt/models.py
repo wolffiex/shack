@@ -11,12 +11,12 @@ class Animation(models.Model):
     file_path = models.FilePathField(path="render", null=True, blank=True)
     start_time = models.DateTimeField(null=True, blank=True)
     served_at = models.DateTimeField(null=True, blank=True, default=None)
-    SOURCES = (
-        ('static', 'Static'),
-        ('rays', 'Clock Rays'),
-        ('spotify', 'Spotify'),
-    )
-    source = models.CharField(max_length=20, choices=SOURCES)
+    class Source(models.TextChoices):
+        STATIC = 'static'
+        RAYS = 'rays'
+        SPOTIFY = 'spotify'
+
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.STATIC)
     metadata = JSONField(default=dict)
 
     class Meta:
