@@ -107,6 +107,7 @@ def now_playing():
 
     # Extract track title
     track_title = data["item"]["name"]
+    track_id = data["item"]["id"]
 
     artist_names = ", ".join(artist["name"] for artist in data["item"]["artists"])
 
@@ -117,7 +118,8 @@ def now_playing():
             break
 
     return {
-        "track": track_title,
+        "id": track_id,
+        "title": track_title,
         "artist": artist_names,
         "art": art_url,
     }
@@ -125,6 +127,13 @@ def now_playing():
 
 def player(_):
     track_info = now_playing()
+    logger.info(track_info)
+    track_info = {
+        "id": "xxxx4ZpQiJ78LKINrW9SQTgbXdxxxx",
+        "title": "Take My Hand",
+        "artist": "Dido",
+        "art": "https://i.scdn.co/image/ab67616d00004851f655ea5e71413d83c51b9687",
+    }
     assert track_info
     frames = [*generate(track_info["title"], track_info["artist"], track_info["art"])]
     # last_animation = Animation.objects.latest("start_time")

@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 from django.templatetags.static import static
 from django.db.models import Q, JSONField, UniqueConstraint
 from .api_token import ApiToken
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Animation(models.Model):
@@ -21,7 +24,7 @@ class Animation(models.Model):
     source = models.CharField(
         max_length=20, choices=Source.choices, default=Source.STATIC
     )
-    metadata = JSONField(default=dict)
+    metadata = JSONField(default=dict, blank=True)
 
     class Meta:
         indexes = [models.Index(fields=["start_time"])]
