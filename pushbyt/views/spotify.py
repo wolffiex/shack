@@ -4,6 +4,7 @@ from pushbyt.animation.now_playing import generate
 from pushbyt.views.generate import render
 from pathlib import Path
 from pushbyt.models import Animation
+from urllib.parse import urlencode
 import requests
 import os
 import logging
@@ -31,7 +32,7 @@ def login(_):
         "redirect_uri": spotify["redirect_uri"],
     }
 
-    url = f"{auth_url}?{'&'.join([f'{k}={v}' for k, v in auth_params.items()])}"
+    url = f"{auth_url}?{urlencode(auth_params)}"
     return redirect(url)
 
 
@@ -51,6 +52,7 @@ def callback(request):
     response = requests.post(token_url, data=token_data)
     response.raise_for_status()
     logger.info(response)
+    logger.info(response.json())
     access_token = response.json()["access_token"]
 
     return HttpResponse(f"export SPOTIFY_TOKEN='{access_token}'")
