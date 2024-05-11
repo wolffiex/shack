@@ -3,12 +3,13 @@ from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.templatetags.static import static
+from django.db.models import Q
 
 
 class Animation(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     file_path = models.FilePathField(path="render", null=True, blank=True)
-    start_time = models.DateTimeField()
+    start_time = models.DateTimeField(null=True, blank=True)
     served_at = models.DateTimeField(null=True, blank=True, default=None)
 
     class Meta:
@@ -18,23 +19,28 @@ class Animation(models.Model):
     def start_time_local(self):
         return self.start_time.astimezone(timezone.get_current_timezone())
 
-
     def clean(self):
         super().clean()
-        if self.start_time.microsecond != 0:
-            raise ValidationError("Start time milliseconds must be zero.")
-        if self.start_time.second not in [0, 15, 30, 45]:
-            raise ValidationError("Start time seconds must be one of 0, 15, 30, or 45.")
+        if self.start_time:
+            if self.start_time.microsecond != 0:
+                raise ValidationError("Start time milliseconds must be zero.")
+            if self.start_time.second not in [0, 15, 30, 45]:
+                raise ValidationError(
+                    "Start time seconds must be one of 0, 15, 30, or 45."
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()  # Validate the model before saving
         super().save(*args, **kwargs)
 
     @classmethod
-    def get_next_animation(cls, current_time:datetime):
+    def get_next_animation(cls, current_time: datetime):
         return (
-            cls.objects.filter(start_time__gt=current_time)
-            .order_by("start_time")
+            cls.objects.filter(
+                Q(start_time__isnull=True, served_at__isnull=True)
+                | Q(start_time__gt=current_time)
+            )
+            .order_by("start_time", "created_at")
             .first()
         )
 
@@ -55,7 +61,9 @@ class Animation(models.Model):
 
     @property
     def url(self):
-        return "/pushbyt/" + self.file_path if self.file_path else static("missing.webp")
+        return (
+            "/pushbyt/" + self.file_path if self.file_path else static("missing.webp")
+        )
 
 
 class Lock(models.Model):
