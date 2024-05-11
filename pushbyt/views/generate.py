@@ -8,10 +8,12 @@ import subprocess
 from PIL import Image
 from datetime import datetime, timedelta
 from pushbyt.animation.rays2 import clock_rays
+from pushbyt.animation.song import song_info
 from pathlib import Path
 from django.utils import timezone
 from pushbyt.models import Animation
 from ha.utils import tidbyt_turn_on
+from pushbyt.spotify import now_playing
 import logging
 
 
@@ -61,8 +63,34 @@ def generate(_):
             lock.acquired = False
             lock.save()
 
+
 def check_spotify():
-    pass
+    track_info = now_playing()
+    logger.info('spot')
+    logger.info(track_info)
+    if not track_info:
+        return
+    logger.info(track_info)
+    # track_info = {
+    #     "id": "xxxx4ZpQiJ78LKINrW9SQTgbXdxxxx",
+    #     "title": "Take My Hand title: Take My Hand",
+    #     "artist": "Dido last_animation = Animation.objects.latest( wstart_time )",
+    #     "art": "https://i.scdn.co/image/ab67616d00004851f655ea5e71413d83c51b9687",
+    # }
+    frames = [*song_info(track_info["title"], track_info["artist"], track_info["art"])]
+    # last_animation = Animation.objects.latest("start_time")
+    # anim_start_time = Animation.align_time(last_animation.start_time_local)
+    # file_path = (
+    #     Path("render") / anim_start_time.strftime("%j-%H-%M-%S")
+    # ).with_suffix(".webp")
+    track_id = track_info["id"]
+    file_path = (Path("render") / f"spotify-{track_id}").with_suffix(".webp")
+    render(frames, file_path)
+    anim = Animation(
+        file_path=file_path, source=Animation.Source.SPOTIFY, metadata={"id": track_id}
+    )
+    anim.save()
+
 
 def is_running() -> bool:
     now = timezone.localtime()

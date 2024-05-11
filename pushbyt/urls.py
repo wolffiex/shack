@@ -7,7 +7,6 @@ from pushbyt.views import (
     get_simulator,
     spotify_login,
     spotify_callback,
-    spotify_info,
 )
 
 urlpatterns = [
@@ -18,5 +17,4 @@ urlpatterns = [
     path("render/<str:file_name>", get_render, name="get_render"),
     path("spotify/login", spotify_login, name="spotify_login"),
     path("spotify/token", spotify_callback, name="spotify_calllback"),
-    path("spotify/info", spotify_info, name="spotify_info"),
 ]

@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.templatetags.static import static
-from django.db.models import Q, JSONField, UniqueConstraint
+from django.db.models import Q, JSONField, UniqueConstraint, F
 from .api_token import ApiToken
 import logging
 
@@ -61,7 +61,7 @@ class Animation(models.Model):
                 Q(start_time__isnull=True, served_at__isnull=True)
                 | Q(start_time__gt=current_time)
             )
-            .order_by("start_time", "created_at")
+            .order_by(F('start_time').asc(nulls_first=True), 'created_at')
             .first()
         )
 

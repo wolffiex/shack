@@ -6,7 +6,6 @@ from .simulate import get_simulator
 from .spotify import (
     login as spotify_login,
     callback as spotify_callback,
-    player as spotify_info,
 )
 
 __all__ = [
@@ -17,5 +16,4 @@ __all__ = [
     "get_simulator",
     "spotify_login",
     "spotify_callback",
-    "spotify_info",
 ]

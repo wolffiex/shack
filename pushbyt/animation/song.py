@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 WIDTH, HEIGHT = 64, 32
 
 
-def generate(
+def song_info(
     title: str, artist: str, art_url: Optional[str]
 ) -> Generator[Image.Image, str, None]:
     black_img = Image.new("RGB", (WIDTH, HEIGHT), color="black")
