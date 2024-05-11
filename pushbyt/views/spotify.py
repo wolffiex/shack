@@ -49,6 +49,8 @@ def callback(request):
     }
 
     response = requests.post(token_url, data=token_data)
+    response.raise_for_status()
+    logger.info(response)
     access_token = response.json()["access_token"]
 
     return HttpResponse(f"export SPOTIFY_TOKEN='{access_token}'")
