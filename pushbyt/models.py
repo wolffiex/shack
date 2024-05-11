@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.templatetags.static import static
-from django.db.models import Q
+from django.db.models import Q, JSONField
 
 
 class Animation(models.Model):
@@ -11,6 +11,13 @@ class Animation(models.Model):
     file_path = models.FilePathField(path="render", null=True, blank=True)
     start_time = models.DateTimeField(null=True, blank=True)
     served_at = models.DateTimeField(null=True, blank=True, default=None)
+    SOURCES = (
+        ('static', 'Static'),
+        ('rays', 'Clock Rays'),
+        ('spotify', 'Spotify'),
+    )
+    source = models.CharField(max_length=20, choices=SOURCES)
+    metadata = JSONField(default=dict)
 
     class Meta:
         indexes = [models.Index(fields=["start_time"])]
