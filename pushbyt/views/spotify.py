@@ -130,8 +130,8 @@ def player(_):
     logger.info(track_info)
     track_info = {
         "id": "xxxx4ZpQiJ78LKINrW9SQTgbXdxxxx",
-        "title": "Take My Hand",
-        "artist": "Dido",
+        "title": "Take My Hand title: Take My Hand",
+        "artist": "Dido last_animation = Animation.objects.latest( wstart_time )",
         "art": "https://i.scdn.co/image/ab67616d00004851f655ea5e71413d83c51b9687",
     }
     assert track_info

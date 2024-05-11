@@ -12,7 +12,7 @@ WIDTH, HEIGHT = 64, 32
 
 
 def generate(
-    track: str, artist: str, art_url: Optional[str]
+    title: str, artist: str, art_url: Optional[str]
 ) -> Generator[Image.Image, str, None]:
     black_img = Image.new("RGB", (WIDTH, HEIGHT), color="black")
     font = ImageFont.truetype("./fonts/pixelmix/pixelmix.ttf", 8)
@@ -25,26 +25,58 @@ def generate(
     for top in range(0, 32):
         yield art.crop((0, top, 64, top + 32))
 
-    track_text = Image.new("RGB", (WIDTH, HEIGHT * 10), color="black")
-    alpha_step = 1/32
+    title_img = Image.new("RGB", (WIDTH, HEIGHT * 10), color="black")
+    draw = ImageDraw.Draw(title_img)
+    wrapped_title = textwrap.wrap(unidecode(title), width=10)
+    title_height = 1
+    for line in wrapped_title:
+        draw.text(
+            (32, title_height),
+            line,
+            fill="white",
+            anchor="mt",
+            align="center",
+            font=font,
+        )
+        title_height += 9
+
+    alpha_step = 1 / 32
+    crop_y = title_height // 2 - 16
+    title_cropped = title_img.crop((0, crop_y, 64, crop_y + 32))
     for i, top in enumerate(range(32, 64)):
         cropped = art.crop((0, top, 64, 64))
         resized = black_img.copy()
         resized.paste(cropped)
-        faded_art = Image.blend(black_img, resized, 1-alpha_step*i)
-        yield faded_art
+        alpha = 1 - alpha_step * i
+        faded_art = Image.blend(black_img, resized, alpha)
+        faded_title = Image.blend(title_cropped, black_img, alpha)
+        yield ImageChops.screen(faded_art, faded_title)
 
-
-    artist_text = Image.new("RGB", (WIDTH, HEIGHT * 10), color="black")
-    draw = ImageDraw.Draw(artist_text)
+    artist_img = Image.new("RGB", (WIDTH, HEIGHT * 10), color="black")
+    draw = ImageDraw.Draw(artist_img)
     wrapped_artist = textwrap.wrap(unidecode(artist), width=10)
-    y = 1
+    artist_height = 1
     for line in wrapped_artist:
         draw.text(
-            (32, y), line, fill="white", anchor="mt", align="center", font=font
+            (32, artist_height),
+            line,
+            fill="white",
+            anchor="mt",
+            align="center",
+            font=font,
         )
-        y += 9
+        artist_height += 9
 
-    for _ in range(25):
-        yield artist_text.crop((0, 0, 64, 32))
+    crop_y = artist_height // 2 - 16
+    artist_cropped = artist_img.crop((0, crop_y, 64, crop_y + 32))
 
+    for i in range(0, 10):
+        yield Image.blend(artist_cropped, title_cropped, 1 - i / 10)
+
+    for i in range(0, 10):
+        yield artist_cropped
+
+    for i in range(0, 10):
+        yield Image.blend(black_img, artist_cropped, 1 - i / 10)
+
+    yield black_img
