@@ -4,14 +4,13 @@
 
 {% with IMG_ID="webp-img" %}
 <head>
-  <script type="module">
-    console.log('hiiii, {{ IMG_ID }}')
+  <script type="module" src="/pushbyt/static/js/simulator.js">
   </script>
   <style>
     h1 {
       font-size: medium;
     }
-    .container {
+    #container {
       display: flex;
     }
   </style>
@@ -19,8 +18,7 @@
 
 <body>
   <h1>Tidbyt simulator</h1>
-  <div class="container">
-    <img id="{{IMG_ID}}" width="640" height="320" src="/pushbyt/v1/preview.webp">
+  <div id="container">
   </div>
 </body>
 {% endwith %}
