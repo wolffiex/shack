@@ -12,7 +12,6 @@ from pushbyt.animation.song import song_info
 from pathlib import Path
 from django.utils import timezone
 from pushbyt.models import Animation
-from ha.utils import tidbyt_turn_on
 from pushbyt.spotify import now_playing
 import logging
 
@@ -41,21 +40,14 @@ def generate(_):
     except OperationalError:
         return HttpResponse("Failed to acquire lock", status=500)
 
-    result = "Nothing to do"
+    result = "Exception"
     try:
         if is_running():
-            check_spotify()
-            start_time = get_next_animation_time()
-            logger.info(f"next animation time {start_time}")
-            if start_time:
-                generate_filler(start_time)
-                result = "Generated rays"
+            os.makedirs(RENDER_DIR, exist_ok=True)
+            result = generate_interrupt() + "\n"
+            result += generate_timed()
         else:
             result = "Not running"
-            if is_present():
-                os.makedirs(RENDER_DIR, exist_ok=True)
-                generate_welcome()
-                tidbyt_turn_on()
 
         return HttpResponse(result)
     finally:
@@ -63,31 +55,45 @@ def generate(_):
             lock.acquired = False
             lock.save()
 
+def generate_interrupt():
+    return check_spotify()
+
+def generate_timed():
+    end_time = get_last_animation_end_time()
+    if not end_time:
+        end_time = timezone.now()
+    logger.info(f"last animation ends {end_time}")
+    if end_time < timezone.now() + timedelta(seconds=90):
+        generate_rays(end_time)
+        return "Generated rays"
+    return "Already have timed content through {start_time}"
 
 def check_spotify():
     track_info = now_playing()
     if not track_info:
-        return
+        return "Spotify not playing"
 
     track_id = track_info["id"]
+    track_title = track_info["title"]
     try:
         last_spotify = Animation.objects.filter(source=Animation.Source.SPOTIFY).latest(
             "created_at"
         )
         if last_spotify.metadata["id"] == track_id:
-            logger.info(f"Already did {track_info['title']}")
-            return
+            logger.info(f"Already did {track_title}")
+            return f"Spotify already did {track_title}"
     except Animation.DoesNotExist:
         pass
 
     logger.info(track_info)
-    frames = [*song_info(track_info["title"], track_info["artist"], track_info["art"])]
+    frames = [*song_info(track_title, track_info["artist"], track_info["art"])]
     file_path = (Path("render") / f"spotify-{track_id}").with_suffix(".webp")
     render(frames, file_path)
     anim = Animation(
         file_path=file_path, source=Animation.Source.SPOTIFY, metadata={"id": track_id}
     )
     anim.save()
+    return "Spotify now playing {track_title}"
 
 
 def is_running() -> bool:
@@ -99,36 +105,21 @@ def is_running() -> bool:
     return Animation.objects.filter(served_at__gt=one_minute_ago).exists()
 
 
-def is_present() -> bool:
-    return False
-
-
-def generate_welcome():
-    pass
-
-
-def get_next_animation_time() -> Optional[datetime]:
-    now = timezone.localtime()
+def get_last_animation_end_time() -> Optional[datetime]:
     try:
         last_animation = Animation.objects.filter(start_time__isnull=False).latest(
             "start_time"
         )
-        next_time = max(last_animation.start_time_local, now)
-        # No need to generate if we have animations more than two minutes hence
-        if next_time > now + timedelta(minutes=2):
-            return None
+        return last_animation.start_time_local + timedelta(seconds=15)
     except Animation.DoesNotExist:
-        next_time = now
-
-    return Animation.align_time(next_time)
+        return None
 
 
-def generate_filler(start_time: datetime):
-    os.makedirs(RENDER_DIR, exist_ok=True)
-    end_time = start_time + timedelta(minutes=5)
+def generate_rays(start_time: datetime):
+    t = Animation.align_time(start_time)
+    end_time = t + timedelta(seconds=90)
     frames = clock_rays()
     next(frames)
-    t = start_time
     animations = []
     while t < end_time:
         anim_frames = []
