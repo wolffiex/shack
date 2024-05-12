@@ -33,7 +33,8 @@ def post_ha_action(api, action, entity_id):
         "Content-Type": "application/json",
     }
     data = {"entity_id": entity_id}
-    response = httpx.post(url, headers=headers, json=data)
+    # ha actions can be very slow
+    response = httpx.post(url, headers=headers, json=data, timeout=75)
     response.raise_for_status()
 
 
@@ -86,7 +87,7 @@ def get_monitoring():
             co2, celsius, humidity, air_time = result
 
             cur.execute("""
-                SELECT time, detected FROm motion ORDER BY time desc LIMIT 10
+                SELECT time, detected FROm motion ORDER BY time desc LIMIT 15
             """)
 
             results = cur.fetchall()
