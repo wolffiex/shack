@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from django.templatetags.static import static
 from django.db.models import Q, JSONField, UniqueConstraint, F
 from .api_token import ApiToken
+import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,15 @@ class Animation(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()  # Validate the model before saving
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.file_path:
+            try:
+                os.remove(self.file_path)
+            except Exception:
+                logger.warn(f"Failed to remove {self.file_path}")
+
+        return super().delete(*args, **kwargs)
 
     @classmethod
     def get_next_animation(cls, current_time: datetime):
