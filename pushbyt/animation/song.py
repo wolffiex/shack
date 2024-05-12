@@ -43,12 +43,10 @@ def song_info(
     alpha_step = 1 / 32
     crop_y = title_height // 2 - 16
     title_cropped = title_img.crop((0, crop_y, 64, crop_y + 32))
-    for i, top in enumerate(range(32, 64)):
-        cropped = art.crop((0, top, 64, 64))
-        resized = black_img.copy()
-        resized.paste(cropped)
+    for i, top in enumerate(range(32, -1, -1)):
+        cropped = art.crop((0, top, 64, top + 32))
         alpha = 1 - alpha_step * i
-        faded_art = Image.blend(black_img, resized, alpha)
+        faded_art = Image.blend(black_img, cropped, alpha)
         faded_title = Image.blend(title_cropped, black_img, alpha)
         yield ImageChops.screen(faded_art, faded_title)
 
