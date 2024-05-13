@@ -16,22 +16,26 @@ def timer(delta: timedelta) -> Generator[Image.Image, str, None]:
     font = ImageFont.truetype("fonts/upheaval/upheavtt.ttf", 20)
     td = delta
     while td > -timedelta(seconds=10):
-        current_digits = to_min_sec(td)
-        next_digits = to_min_sec(td + timedelta(seconds=1))
-        sub_second = td.microseconds // FRAME_TIME.microseconds
-        digit_images = [
-            combine_digits(font, sub_second, c, n)
-            for c, n in zip(current_digits, next_digits)
-        ]
-        yield text_image(digit_images, sub_second)
-        td -= FRAME_TIME
+        if td > timedelta(seconds=0):
+            current_digits = to_min_sec(td)
+            next_digits = to_min_sec(td - timedelta(seconds=1))
+            sub_second = td.microseconds // FRAME_TIME.microseconds
+            digit_images = [
+                combine_digits(font, sub_second, c, n)
+                for c, n in zip(current_digits, next_digits)
+            ]
+            yield text_image(digit_images, sub_second)
+            td -= FRAME_TIME
+        else:
+            yield Image.new("RGB", (WIDTH, HEIGHT), "red")
 
 
 def combine_digits(font, sub_second, old_digit, new_digit):
-    step = sub_second - 3
     old_img = digit_image(old_digit, font)
-    if step < 0 or old_digit == new_digit:
+    if sub_second > 7 or old_digit == new_digit:
         return old_img
+
+    step = 7 - sub_second
 
     new_img = digit_image(new_digit, font)
     oldp = old_img.load()
@@ -95,7 +99,7 @@ def text_image(digit_images, sub_second):
 
     draw = ImageDraw.Draw(image)
     coords = [(30, 13, 32, 14), (30, 17, 32, 18)]
-    c = round(255 - abs(sub_second - 5) / 5 * 155)
+    c = round(255 - abs(sub_second - 5) / 5 * 100)
     fill_color = (c, c, c)
     for coord in coords:
         draw.rectangle(coord, fill=fill_color)

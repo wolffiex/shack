@@ -14,13 +14,13 @@ class Command(RichCommand):
         self.console.print("Rendering timer", style="bold green")
 
         test_1 = "one", timedelta(minutes=19, seconds=54, milliseconds=345)
-        test_2 = "two", timedelta(minutes=69, seconds=59)
+        test_2 = "two", timedelta(minutes=0, seconds=18)
 
         table = Table(title="Test animations")
         table.add_column("Time delta", style="cyan")
         table.add_column("Path", style="magenta")
         table.add_row(*self.generate(test_1))
-        # table.add_row(*self.generate(test_2))
+        table.add_row(*self.generate(test_2))
 
         self.console.print(table)
 
