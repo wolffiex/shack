@@ -63,7 +63,7 @@ def generate_timed():
     if end_time < timezone.now() + timedelta(seconds=90):
         generate_rays(end_time)
         return "Generated rays"
-    return "Already have timed content through {start_time}"
+    return f"Already have timed content through {end_time}"
 
 def check_spotify():
     track_info = now_playing()
@@ -83,7 +83,6 @@ def check_spotify():
     except Animation.DoesNotExist:
         pass
 
-    logger.info(track_info)
     frames = [*song_info(track_title, track_info["artist"], track_info["art"])]
     file_path = (Path("render") / f"spotify-{track_id}").with_suffix(".webp")
     render(frames, file_path)
