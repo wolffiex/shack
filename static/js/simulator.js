@@ -60,5 +60,5 @@ function generate() {
     )
 }
 
-generate()
+setTimeout(generate, 1000)
 setInterval(generate, 60000)
