@@ -11,7 +11,10 @@ function loadWebPImage() {
     webpImage.onerror = (error) => {
       reject(error);
     };
-    webpImage.src = '/pushbyt/v1/preview.webp'
+    const cacheBuster = Date.now();
+    
+    // Append the cache buster to the image URL
+    webpImage.src = `/pushbyt/v1/preview.webp?t=${cacheBuster}`;
   });
 }
 
