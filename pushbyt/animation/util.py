@@ -1,25 +1,35 @@
-import os
-import base64
-import requests
+import tempfile
+import subprocess
+import logging
+from PIL import Image
+from pathlib import Path
+from datetime import timedelta
 
-TIDBYT_API_PUSH = "https://api.tidbyt.com/v0/devices/%s/push"
-def push(image_bytes, device_id, installation_id, background):
-    api_token = os.getenv("TIDBYT_TOKEN")
+logger = logging.getLogger(__name__)
 
-    if not api_token:
-        raise ValueError(f"Blank Tidbyt API token (set TIDBYT_TOKEN)")
+FRAME_TIME = timedelta(milliseconds=100)
 
-    payload = {
-        "deviceID": device_id,
-        "image": base64.b64encode(image_bytes).decode("utf-8"),
-        "installationID": installation_id,
-        "background": background,
-    }
+def render(frames, file_path, loop=False):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        in_files = [
+            convert_frame(temp_path, i, frame) for i, frame in enumerate(frames)
+        ]
+        frames_arg = " ".join(
+            f"-frame {tf} +{FRAME_TIME.total_seconds() * 1000}" for tf in in_files
+        )
+        cmd = f"webpmux {frames_arg} -loop 1 -bgcolor 255,255,255,255 -o {file_path}"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr)
 
-    headers = {"Authorization": f"Bearer {api_token}"}
-    response = requests.post(TIDBYT_API_PUSH % device_id, json=payload, headers=headers)
 
-    if response.status_code != 200:
-        print(f"Tidbyt API returned status {response.status_code}")
-        print(response.text)
-        raise ValueError(f"Tidbyt API returned status: {response.status_code}")
+def convert_frame(frame_dir: Path, frame_num: int, frame: Image.Image) -> Path:
+    frame_file = frame_dir / f"frame{frame_num:04d}.webp"
+    try:
+        frame.save(frame_file, "WebP", quality=100)
+        return frame_file
+    except Exception as e:
+        logging.error(f"Error encoding frame {frame_num}: {e}")
+        logging.error(f"Frame size: {frame.size}, Frame mode: {frame.mode}")
+        raise

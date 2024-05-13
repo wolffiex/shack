@@ -3,9 +3,6 @@ from django.http import HttpResponse
 from pushbyt.models import Lock
 from typing import Optional
 import os
-import tempfile
-import subprocess
-from PIL import Image
 from datetime import datetime, timedelta
 from pushbyt.animation.rays2 import clock_rays
 from pushbyt.animation.song import song_info
@@ -13,10 +10,10 @@ from pathlib import Path
 from django.utils import timezone
 from pushbyt.models import Animation
 from pushbyt.spotify import now_playing
+from pushbyt.animation import render, FRAME_TIME
 import logging
 
 
-FRAME_TIME = timedelta(milliseconds=100)
 ANIM_DURATION = timedelta(seconds=15)
 FRAME_COUNT = ANIM_DURATION / FRAME_TIME
 RENDER_DIR = Path("render")
@@ -73,6 +70,7 @@ def check_spotify():
     if not track_info:
         return "Spotify not playing"
 
+    logger.info(track_info)
     track_id = track_info["id"]
     track_title = track_info["title"]
     try:
@@ -140,29 +138,3 @@ def generate_rays(start_time: datetime):
             )
         )
     Animation.objects.bulk_create(animations)
-
-
-def render(frames, file_path, loop=False):
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-        in_files = [
-            convert_frame(temp_path, i, frame) for i, frame in enumerate(frames)
-        ]
-        frames_arg = " ".join(
-            f"-frame {tf} +{FRAME_TIME.total_seconds() * 1000}" for tf in in_files
-        )
-        cmd = f"webpmux {frames_arg} -loop 1 -bgcolor 255,255,255,255 -o {file_path}"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr)
-
-
-def convert_frame(frame_dir: Path, frame_num: int, frame: Image.Image) -> Path:
-    frame_file = frame_dir / f"frame{frame_num:04d}.webp"
-    try:
-        frame.save(frame_file, "WebP", quality=100)
-        return frame_file
-    except Exception as e:
-        logging.error(f"Error encoding frame {frame_num}: {e}")
-        logging.error(f"Frame size: {frame.size}, Frame mode: {frame.mode}")
-        raise
