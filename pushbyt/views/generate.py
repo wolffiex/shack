@@ -91,7 +91,7 @@ def check_spotify():
         file_path=file_path, source=Animation.Source.SPOTIFY, metadata={"id": track_id}
     )
     anim.save()
-    return "Spotify now playing {track_title}"
+    return f"Spotify now playing {track_title}"
 
 
 def is_running() -> bool:
