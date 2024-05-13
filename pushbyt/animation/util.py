@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 FRAME_TIME = timedelta(milliseconds=100)
 
-def render(frames, file_path, loop=False):
+def render(frames, file_path):
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         in_files = [

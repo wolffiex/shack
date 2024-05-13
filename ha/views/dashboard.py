@@ -105,7 +105,7 @@ def get_monitoring():
     farenheight = celsius * 9 / 5 + 32
     air_delay = timezone.now() - air_time
     return {
-        "co2": f"{co2} ppm",
+        "co2": f"{round(co2)} ppm",
         "temperature": f"{round(farenheight)}° F",
         "humidity": f"{round(humidity)} %",
         "air_delay": f"{round(air_delay.total_seconds())} seconds ago",
