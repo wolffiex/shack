@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
+from django.utils import timezone
 import requests
 import os
 from settings import HA_HOST
@@ -102,11 +103,12 @@ def get_monitoring():
                     current_span_end = None
 
     farenheight = celsius * 9 / 5 + 32
+    air_delay = timezone.now() - air_time
     return {
         "co2": f"{co2} ppm",
         "temperature": f"{round(farenheight)}° F",
         "humidity": f"{round(humidity)} %",
-        "air_time": air_time,
+        "air_delay": f"{round(air_delay.total_seconds())} seconds ago",
         "motion_spans": motion_spans,
     }
 
