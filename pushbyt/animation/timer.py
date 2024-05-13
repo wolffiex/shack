@@ -16,18 +16,19 @@ def timer(delta: timedelta) -> Generator[Image.Image, str, None]:
     font = ImageFont.truetype("fonts/upheaval/upheavtt.ttf", 20)
     td = delta
     while td > -timedelta(seconds=10):
+        sub_second = td.microseconds // FRAME_TIME.microseconds
         if td > timedelta(seconds=0):
             current_digits = to_min_sec(td)
             next_digits = to_min_sec(td - timedelta(seconds=1))
-            sub_second = td.microseconds // FRAME_TIME.microseconds
             digit_images = [
                 combine_digits(font, sub_second, c, n)
                 for c, n in zip(current_digits, next_digits)
             ]
             yield text_image(digit_images, sub_second)
-            td -= FRAME_TIME
         else:
-            yield Image.new("RGB", (WIDTH, HEIGHT), "red")
+            color = "red" if sub_second % 2 == 1 else "black"
+            yield Image.new("RGB", (WIDTH, HEIGHT), color)
+        td -= FRAME_TIME
 
 
 def combine_digits(font, sub_second, old_digit, new_digit):
