@@ -18,4 +18,5 @@ def get_preview(_):
         anim = Animation(start_time=Animation.align_time(now))
     anim.served_at = now
     anim.save()
+    logger.info(f"Redirect {anim.url}")
     return redirect(anim.url)

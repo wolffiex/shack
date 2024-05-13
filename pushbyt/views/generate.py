@@ -45,12 +45,13 @@ def generate(_):
             result += generate_timed()
         else:
             result = "Not running"
-
-        return HttpResponse(result)
     finally:
         with transaction.atomic():
             lock.acquired = False
             lock.save()
+
+    logger.info(f"generate {result}")
+    return HttpResponse(result)
 
 def generate_interrupt():
     return check_spotify()
