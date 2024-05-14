@@ -2,13 +2,14 @@ import os
 from datetime import datetime, timedelta
 from pushbyt.animation.rays2 import clock_rays
 from pushbyt.animation.song import song_info
+from pushbyt.animation.timer import timer as timer_frames
 from pathlib import Path
 from django.db.models import Max
 from django.utils import timezone
 from pushbyt.models import Animation
 from pushbyt.spotify import now_playing
 from pushbyt.animation import render, FRAME_TIME
-from typing import Optional
+from ha.models import Timer
 import logging
 
 
@@ -28,6 +29,7 @@ def generate():
     logger.info(f"aligned {aligned_time}")
     results = [
         check_spotify(),
+        check_timer(aligned_time),
         generate_rays(aligned_time),
     ]
     return "\n".join(results)
@@ -67,31 +69,81 @@ def check_spotify():
 SEGMENT_TIME = timedelta(seconds=90)
 
 
-def generate_rays(start_time: datetime):
+def check_timer(start_time):
+    timer = Timer.objects.order_by('-created_at').first()
+    timer_animations = Animation.objects.filter(
+        source=Animation.Source.TIMER,
+        start_time__gte=start_time,
+    )
+    results = []
+    if timer and timer.is_running:
+        timer_animations = timer_animations.exclude(metadata__id=timer.pk)
+
+    delete_result = timer_animations.delete()
+    if timer and timer.is_running:
+        render_result = generate_timer(start_time, timer)
+        results.append(render_result)
+
+    results.append(f"Deleted old timers {delete_result}")
+    return "\n".join(results)
+
+
+def generate_timer(start_time, timer):
+    segment_start = get_segment_start(start_time, Animation.Source.TIMER)
+    if not segment_start:
+        return "Already have timers"
+    t = segment_start
+    end_time = t + SEGMENT_TIME
+    frames = timer_frames(timer.created_at + timer.duration - segment_start)
+    animations = []
+    while t < end_time:
+        anim_frames = []
+        anim_start_time = t
+        for _ in range(int(FRAME_COUNT)):
+            anim_frames.append(next(frames))
+            t += FRAME_TIME
+        file_path = (
+            Path("render") / anim_start_time.strftime("%j-%H-%M-%S")
+        ).with_suffix(".webp")
+        render(anim_frames, file_path)
+        animations.append(
+            Animation(
+                file_path=file_path,
+                start_time=anim_start_time,
+                source=Animation.Source.TIMER,
+            )
+        )
+    new_anims = Animation.objects.bulk_create(animations)
+    return (f"Created {len(new_anims)} timers starting at " +
+            segment_start.strftime(" %-I:%M:%S"))
+
+
+def get_segment_start(start_time, source):
+    # For now, assume all animations are continuous.
+    # This is not a hard guarantee
     max_start_time = Animation.objects.filter(
         start_time__gte=start_time,
-        source=Animation.Source.RAYS
+        source=source
     ).aggregate(
         max_start_time=Max('start_time')
     )['max_start_time']
 
-    first_empty_slot = (
+    return (
         Animation.next_time(
             max_start_time.astimezone(timezone.get_current_timezone())
         )
         if max_start_time
         else start_time
     )
-    # For now, assume all rays animations are continuous.
-    # This is not a hard guarantee
-    if start_time + SEGMENT_TIME < first_empty_slot:
-        return (
-            "Already have rays through " +
-            first_empty_slot.strftime("%-I:%M:%S")
-        )
 
-    t = first_empty_slot
-    end_time = t + timedelta(seconds=90)
+
+def generate_rays(start_time: datetime):
+    segment_start = get_segment_start(start_time, Animation.Source.RAYS)
+    if not segment_start:
+        return "Already have rays"
+
+    t = segment_start
+    end_time = t + SEGMENT_TIME
     frames = clock_rays()
     next(frames)
     animations = []
@@ -115,4 +167,4 @@ def generate_rays(start_time: datetime):
         )
     new_anims = Animation.objects.bulk_create(animations)
     return (f"Created {len(new_anims)} rays starting at " +
-            first_empty_slot.strftime(" %-I:%M:%S"))
+            segment_start.strftime(" %-I:%M:%S"))
