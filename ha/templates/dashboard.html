@@ -3,12 +3,15 @@
 <html>
 
 <head>
+  <script type="module" src="/pushbyt/static/js/dashboard.js">
+  </script>
   <style>
     .container {
       width: fit-content;
       /* or */
       /* display: inline-block; */
     }
+
     table {
       border-collapse: collapse;
     }
@@ -25,6 +28,7 @@
     fieldset>div {
       margin-bottom: 10px;
     }
+
   </style>
 </head>
 
@@ -77,13 +81,17 @@
       </div>
     </fieldset>
     <div>
-      <h2>Timer</h2>
-      <div>
-        <input type="range" min="0" max="100" value="50" id="mySlider">
-      </div>
-      <div>
-        <button>Start</button>
-      </div>
+      <form method="post" action="{% url 'start_timer' %}">
+        {% csrf_token %}
+        <h2>Timer</h2>
+        <div>
+          <input type="range" min="1" max="99" value="20" id="timerSlider" name="timerValue">
+          <label for="timerSlider" id="sliderLabel" font_size="smaller"></label>
+        </div>
+        <div>
+          <input type="submit"></input>
+        </div>
+      </form>
     </div>
     <div>
       <h2>Presence</h2>
