@@ -36,11 +36,36 @@
     #timerDisplay {
       font-family: monospace;
     }
+
+    dialog.alert {
+      border: 2px solid red;
+      color: red;
+      text-align: center;
+      padding: 20px;
+    }
+
+    dialog.alert button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
   </style>
 </head>
 
 <body>
   <h1>Shack</h1>
+  {% if error_message %}
+  <dialog class="alert" open>
+    <div>
+      {{ error_message }}
+    </div>
+    <button onclick="this.parentNode.close()">OK</button>
+  </dialog>
+  {% endif %}
   <div class="container">
     <table>
       <tr>
@@ -87,7 +112,7 @@
         </a>
       </div>
     </fieldset>
-    <div id="timerDiv" {% if timer %}class="running"{% endif %}>
+    <div id="timerDiv" {% if timer %}class="running" {% endif %}>
       <h2>Timer</h2>
       {% if timer %}
       <form method="post" action="{% url 'cancel_timer' %}" class="running">

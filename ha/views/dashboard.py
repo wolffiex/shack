@@ -1,8 +1,10 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from asgiref.sync import sync_to_async
 from django.http import HttpResponse
 from django.utils import timezone
 from ha.models import Timer
+from urllib.parse import quote
 import requests
 import os
 from settings import HA_HOST
@@ -25,7 +27,13 @@ CONTROLS = {
 def control(request, name):
     api, entity_id = CONTROLS[name]
     action = request.GET.get("action", "")
-    post_ha_action(api, action, entity_id)
+    try:
+        post_ha_action(api, action, entity_id)
+    except Exception as e:
+        error_message = quote(str(e))
+        return redirect(reverse("dashboard") +
+                        f"?error_message={error_message}")
+
     return redirect("dashboard")
 
 
@@ -42,16 +50,19 @@ def post_ha_action(api, action, entity_id):
 
 
 async def dashboard(request):
+    error_data = {"error_message": request.GET.get("error_message", "")}
+    logger.info(f"ed {error_data}")
     ha_data = await ha_info()
     monitoring_data = get_monitoring()
     timer_data = await get_timer()
-    return render(request, "dashboard.html", ha_data | monitoring_data | timer_data)
+    return render(request, "dashboard.html",
+                  (ha_data | monitoring_data | timer_data | error_data))
 
 
 @sync_to_async
 def get_timer():
     timer = Timer.objects.order_by('-created_at').first()
-    if not timer.is_running:
+    if timer and not timer.is_running:
         timer = None
     return {"timer": timer}
 
