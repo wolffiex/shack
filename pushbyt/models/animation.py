@@ -7,6 +7,7 @@ from django.db.models import Q, JSONField, UniqueConstraint, F
 import logging
 
 logger = logging.getLogger(__name__)
+NINETY_SECONDS = timedelta(seconds=90)
 
 
 class Animation(models.Model):
@@ -29,15 +30,11 @@ class Animation(models.Model):
         indexes = [models.Index(fields=["start_time"])]
         constraints = [
             UniqueConstraint(
-                fields=["start_time"],
+                fields=["start_time", "source"],
                 condition=Q(start_time__isnull=False),
-                name="unique_start_time_if_not_null",
+                name="unique_start_time_source_if_not_null",
             )
         ]
-
-    @property
-    def start_time_local(self):
-        return self.start_time.astimezone(timezone.get_current_timezone())
 
     def clean(self):
         super().clean()
@@ -68,19 +65,24 @@ class Animation(models.Model):
     def align_time(t: datetime) -> datetime:
         second = t.second
         if 0 <= second < 15:
-            next_second = 15
+            r_second = 0
         elif 15 <= second < 30:
-            next_second = 30
+            r_second = 15
         elif 30 <= second < 45:
-            next_second = 45
+            r_second = 30
         else:
-            next_second = 0
-            t += timedelta(minutes=1)
+            r_second = 45
 
-        return t.replace(second=next_second, microsecond=0, tzinfo=t.tzinfo)
+        return t.replace(second=r_second, microsecond=0, tzinfo=t.tzinfo)
+
+    @staticmethod
+    def next_time(t: datetime) -> datetime:
+        return Animation.align_time(t) + timedelta(seconds=15)
 
     @property
     def url(self):
         return (
-            "/pushbyt/" + self.file_path if self.file_path else static("missing.webp")
+            "/pushbyt/" + self.file_path
+            if self.file_path
+            else static("missing.webp")
         )

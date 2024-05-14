@@ -16,7 +16,9 @@ def generate(_):
 
     try:
         with transaction.atomic():
-            lock, _ = Lock.objects.select_for_update(nowait=True).get_or_create(
+            lock, _ = Lock.objects.select_for_update(
+                nowait=True
+            ).get_or_create(
                 name=lock_name
             )
             if lock.acquired:
@@ -28,7 +30,7 @@ def generate(_):
 
     result = "Exception"
     try:
-        if is_running():
+        if True: # is_running():
             result = generate_animation()
         else:
             result = "Not running"
@@ -39,6 +41,7 @@ def generate(_):
 
     logger.info(f"generate {result}")
     return HttpResponse(result)
+
 
 def is_running() -> bool:
     now = timezone.localtime()

@@ -17,7 +17,8 @@ def get_preview(_):
     if anim:
         if anim.served_at:
             logger.error(
-                f"Already served {anim.file_path} at {anim.served_at} now {now}"
+                f"Already served {anim.file_path} at {
+                    anim.served_at} now {now}"
             )
     else:
         anim = Animation(start_time=Animation.align_time(now))
@@ -35,6 +36,7 @@ def choose_anim(anims):
 
 def get_next_animations(now):
     return Animation.objects.filter(
-            Q(start_time__isnull=True, served_at__isnull=True) | 
-            (Q(start_time__gt=now) & Q(start_time__lte=now + timedelta(seconds=15)))
-        ).order_by(F('start_time').asc(nulls_first=True), 'created_at')
+        Q(start_time__isnull=True, served_at__isnull=True) |
+        (Q(start_time__gt=now) &
+         Q(start_time__lte=now + timedelta(seconds=15)))
+    ).order_by(F('start_time').asc(nulls_first=True), 'created_at')

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from pushbyt.animation.rays2 import clock_rays
 from pushbyt.animation.song import song_info
 from pathlib import Path
+from django.db.models import Max
 from django.utils import timezone
 from pushbyt.models import Animation
 from pushbyt.spotify import now_playing
@@ -21,19 +22,16 @@ logger = logging.getLogger(__name__)
 
 def generate():
     os.makedirs(RENDER_DIR, exist_ok=True)
-    result = check_spotify() + "\n"
-    result += generate_timed()
-    return result
+    now = timezone.now().astimezone(timezone.get_current_timezone())
+    logger.info(f"now {now}")
+    aligned_time = Animation.align_time(now)
+    logger.info(f"aligned {aligned_time}")
+    results = [
+        check_spotify(),
+        generate_rays(aligned_time),
+    ]
+    return "\n".join(results)
 
-def generate_timed():
-    end_time = get_last_animation_end_time()
-    if not end_time:
-        end_time = timezone.now()
-    logger.info(f"last animation ends {end_time}")
-    if end_time < timezone.now() + timedelta(seconds=90):
-        generate_rays(end_time)
-        return "Generated rays"
-    return f"Already have timed content through {end_time}"
 
 def check_spotify():
     track_info = now_playing()
@@ -44,7 +42,9 @@ def check_spotify():
     track_id = track_info["id"]
     track_title = track_info["title"]
     try:
-        last_spotify = Animation.objects.filter(source=Animation.Source.SPOTIFY).latest(
+        last_spotify = Animation.objects.filter(
+            source=Animation.Source.SPOTIFY
+        ).latest(
             "created_at"
         )
         if last_spotify.metadata["id"] == track_id:
@@ -57,24 +57,40 @@ def check_spotify():
     file_path = (Path("render") / f"spotify-{track_id}").with_suffix(".webp")
     render(frames, file_path)
     anim = Animation(
-        file_path=file_path, source=Animation.Source.SPOTIFY, metadata={"id": track_id}
+        file_path=file_path, source=Animation.Source.SPOTIFY, metadata={
+            "id": track_id}
     )
     anim.save()
     return f"Spotify now playing {track_title}"
 
 
-def get_last_animation_end_time() -> Optional[datetime]:
-    try:
-        last_animation = Animation.objects.filter(start_time__isnull=False).latest(
-            "start_time"
-        )
-        return last_animation.start_time_local + timedelta(seconds=15)
-    except Animation.DoesNotExist:
-        return None
+SEGMENT_TIME = timedelta(seconds=90)
 
 
 def generate_rays(start_time: datetime):
-    t = Animation.align_time(start_time)
+    max_start_time = Animation.objects.filter(
+        start_time__gte=start_time,
+        source=Animation.Source.RAYS
+    ).aggregate(
+        max_start_time=Max('start_time')
+    )['max_start_time']
+
+    first_empty_slot = (
+        Animation.next_time(
+            max_start_time.astimezone(timezone.get_current_timezone())
+        )
+        if max_start_time
+        else start_time
+    )
+    # For now, assume all rays animations are continuous.
+    # This is not a hard guarantee
+    if start_time + SEGMENT_TIME < first_empty_slot:
+        return (
+            "Already have rays through " +
+            first_empty_slot.strftime("%-I:%M:%S")
+        )
+
+    t = first_empty_slot
     end_time = t + timedelta(seconds=90)
     frames = clock_rays()
     next(frames)
@@ -97,4 +113,6 @@ def generate_rays(start_time: datetime):
                 source=Animation.Source.RAYS,
             )
         )
-    Animation.objects.bulk_create(animations)
+    new_anims = Animation.objects.bulk_create(animations)
+    return (f"Created {len(new_anims)} rays starting at " +
+            first_empty_slot.strftime(" %-I:%M:%S"))
