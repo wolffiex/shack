@@ -7,16 +7,14 @@ class Timer(models.Model):
     duration = models.DurationField()
     canceled = models.BooleanField(default=False)
 
-    @classmethod
-    def get_last_timer(cls):
-        now = timezone.now()
-        timer = cls.objects.annotate(
-            expiration_time=models.ExpressionWrapper(
-                models.F('created_at') + models.F('duration'),
-                output_field=models.DateTimeField()
-            )
-        ).filter(
-            expiration_time__gt=now,
-        ).order_by('-created_at').first()
+    @property
+    def is_running(self) -> bool:
+        if not self.canceled:
+            expiration_time = self.created_at + self.duration
+            return expiration_time > timezone.now()
+        return False
 
-        return timer if timer and not timer.canceled else None
+    @property
+    def timestamp(self) -> int:
+        expiration_time = self.created_at + self.duration
+        return round(expiration_time.timestamp())

@@ -25,10 +25,9 @@
       padding-right: 4rem;
     }
 
-    fieldset>div {
-      margin-bottom: 10px;
+    #timerDisplay {
+      font-family: monospace;
     }
-
   </style>
 </head>
 
@@ -81,17 +80,28 @@
       </div>
     </fieldset>
     <div>
+      <h2>Timer</h2>
+      {% if timer %}
+      <form method="post" action="{% url 'cancel_timer' %}">
+        {% csrf_token %}
+        <input type="hidden" name="timerPk" value="{{ timer.pk }}" />
+        <div>
+          <span data-timestamp="{{ timer.timestamp}}" id="timerDisplay">22:12</span>
+        </div>
+        <input type="submit" value="Cancel timer" />
+      </form>
+      {% else %}
       <form method="post" action="{% url 'start_timer' %}">
         {% csrf_token %}
-        <h2>Timer</h2>
         <div>
-          <input type="range" min="1" max="99" value="20" id="timerSlider" name="timerValue">
-          <label for="timerSlider" id="sliderLabel" font_size="smaller"></label>
+          <input type="range" min="1" max="99" value="20" id="timerSlider" name="minutes">
+          <label for="timerSlider" id="sliderLabel"></label>
         </div>
         <div>
-          <input type="submit"></input>
+          <input type="submit" value="Add timer" />
         </div>
       </form>
+      {% endif %}
     </div>
     <div>
       <h2>Presence</h2>

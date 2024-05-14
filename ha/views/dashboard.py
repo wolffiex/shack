@@ -45,19 +45,15 @@ async def dashboard(request):
     ha_data = await ha_info()
     monitoring_data = get_monitoring()
     timer_data = await get_timer()
-    return render(request, "dashboard.html",
-                  ha_data | monitoring_data | timer_data)
+    return render(request, "dashboard.html", ha_data | monitoring_data | timer_data)
 
 
 @sync_to_async
 def get_timer():
-    timer_expiry = None
-    timer = Timer.get_last_timer()
-    if timer:
-        timer_expires = timer.created_at + timer.duration
-        timer_expiry = timer_expires.timestamp()
-
-    return {"timer": timer_expiry}
+    timer = Timer.objects.order_by('-created_at').first()
+    if not timer.is_running:
+        timer = None
+    return {"timer": timer}
 
 
 async def ha_info():
@@ -114,7 +110,7 @@ def get_monitoring():
                 if not detected:
                     current_span_end = time
                 elif current_span_end:
-                    motion_spans.append((time, current_span_end-time))
+                    motion_spans.append((time, current_span_end - time))
                     current_span_end = None
 
     farenheight = celsius * 9 / 5 + 32
