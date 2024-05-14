@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
+from asgiref.sync import sync_to_async
 from django.http import HttpResponse
 from django.utils import timezone
+from ha.models import Timer
 import requests
 import os
 from settings import HA_HOST
@@ -42,7 +44,20 @@ def post_ha_action(api, action, entity_id):
 async def dashboard(request):
     ha_data = await ha_info()
     monitoring_data = get_monitoring()
-    return render(request, "dashboard.html", ha_data | monitoring_data)
+    timer_data = await get_timer()
+    return render(request, "dashboard.html",
+                  ha_data | monitoring_data | timer_data)
+
+
+@sync_to_async
+def get_timer():
+    timer_expiry = None
+    timer = Timer.get_last_timer()
+    if timer:
+        timer_expires = timer.created_at + timer.duration
+        timer_expiry = timer_expires.timestamp()
+
+    return {"timer": timer_expiry}
 
 
 async def ha_info():

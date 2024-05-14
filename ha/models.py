@@ -8,7 +8,7 @@ class Timer(models.Model):
     canceled = models.BooleanField(default=False)
 
     @classmethod
-    def get_last_unexpired_timer(cls):
+    def get_last_timer(cls):
         now = timezone.now()
         timer = cls.objects.annotate(
             expiration_time=models.ExpressionWrapper(
