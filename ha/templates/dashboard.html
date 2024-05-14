@@ -25,6 +25,14 @@
       padding-right: 4rem;
     }
 
+    #timerDiv:not(.running) form.running {
+      display: none;
+    }
+
+    #timerDiv.running form:not(.running) {
+      display: none;
+    }
+
     #timerDisplay {
       font-family: monospace;
     }
@@ -79,10 +87,10 @@
         </a>
       </div>
     </fieldset>
-    <div>
+    <div id="timerDiv" {% if timer %}class="running"{% endif %}>
       <h2>Timer</h2>
       {% if timer %}
-      <form method="post" action="{% url 'cancel_timer' %}">
+      <form method="post" action="{% url 'cancel_timer' %}" class="running">
         {% csrf_token %}
         <input type="hidden" name="timerPk" value="{{ timer.pk }}" />
         <div>
@@ -90,7 +98,7 @@
         </div>
         <input type="submit" value="Cancel timer" />
       </form>
-      {% else %}
+      {% endif %}
       <form method="post" action="{% url 'start_timer' %}">
         {% csrf_token %}
         <div>
@@ -101,7 +109,6 @@
           <input type="submit" value="Add timer" />
         </div>
       </form>
-      {% endif %}
     </div>
     <div>
       <h2>Presence</h2>

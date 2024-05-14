@@ -1,4 +1,6 @@
-function updateSliderLabel(sliderLabel) {
+const slider = document.getElementById('timerSlider');
+const sliderLabel = document.getElementById('sliderLabel');
+function updateSliderLabel() {
   let m = " minute"
   const v = slider.value
   if (v > 1) {
@@ -6,11 +8,10 @@ function updateSliderLabel(sliderLabel) {
   }
   sliderLabel.textContent = slider.value + m
 }
+slider.addEventListener('input', () => updateSliderLabel(sliderLabel))
+updateSliderLabel()
 
-function getTimerString(expires) {
-  const now = new Date()
-  const tsDifference = expires - now
-
+function getTimerString(tsDifference) {
   if (tsDifference <= 0) {
     return "Timer done"
   }
@@ -24,20 +25,19 @@ function getTimerString(expires) {
   return `${formattedMinutes}:${formattedSeconds}`;
 }
 
-const slider = document.getElementById('timerSlider');
-if (slider) {
-  const sliderLabel = document.getElementById('sliderLabel');
-
-  slider.addEventListener('input', () => updateSliderLabel(sliderLabel))
-  updateSliderLabel()
-}
-
-const display = document.getElementById('timerDisplay');
-console.log(display)
-if (display) {
+const timerDiv = document.getElementById("timerDiv")
+if (timerDiv.classList.contains('running')) {
+  const display = document.getElementById('timerDisplay');
   const tsMillis = Number(display.dataset.timestamp) * 1000
   const expires = new Date(tsMillis)
-  const updateDisplay = () => display.textContent = getTimerString(expires)
+  function updateDisplay() {
+    const now = new Date()
+    const tsDifference = expires - now
+    if (tsDifference < -2500) {
+      timerDiv.classList.toggle("running", false)
+    }
+    display.textContent = getTimerString(tsDifference)
+  }
   setInterval(updateDisplay, 1000)
   updateDisplay()
 }
