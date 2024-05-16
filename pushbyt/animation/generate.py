@@ -14,7 +14,7 @@ import logging
 
 
 ANIM_DURATION = timedelta(seconds=15)
-FRAME_COUNT = ANIM_DURATION / FRAME_TIME
+FRAME_COUNT = ANIM_DURATION // FRAME_TIME
 RENDER_DIR = Path("render")
 
 
@@ -44,9 +44,7 @@ def check_spotify():
     track_id = track_info["id"]
     track_title = track_info["title"]
     try:
-        last_spotify = Animation.objects.filter(
-            source=Animation.Source.SPOTIFY
-        ).latest(
+        last_spotify = Animation.objects.filter(source=Animation.Source.SPOTIFY).latest(
             "created_at"
         )
         if last_spotify.metadata["id"] == track_id:
@@ -59,8 +57,7 @@ def check_spotify():
     file_path = (Path("render") / f"spotify-{track_id}").with_suffix(".webp")
     render(frames, file_path)
     anim = Animation(
-        file_path=file_path, source=Animation.Source.SPOTIFY, metadata={
-            "id": track_id}
+        file_path=file_path, source=Animation.Source.SPOTIFY, metadata={"id": track_id}
     )
     anim.save()
     return f"Spotify now playing {track_title}"
@@ -70,7 +67,7 @@ SEGMENT_TIME = timedelta(seconds=90)
 
 
 def check_timer(start_time):
-    timer = Timer.objects.order_by('-created_at').first()
+    timer = Timer.objects.order_by("-created_at").first()
     timer_animations = Animation.objects.filter(
         source=Animation.Source.TIMER,
         start_time__gte=start_time,
@@ -98,40 +95,38 @@ def generate_timer(start_time, timer):
     animations = []
     while t < end_time:
         anim_frames = []
-        anim_start_time = t
-        for _ in range(int(FRAME_COUNT)):
-            anim_frames.append(next(frames))
-            t += FRAME_TIME
+        anim_frames = [next(frames) for _ in range(FRAME_COUNT)]
+        important = t - timer.created_at + timer.duration < timedelta(
+            seconds=90
+        )
         file_path = (
-            Path("render") / anim_start_time.strftime("%j-%H-%M-%S")
+            Path("render") / t.strftime("%j-%H-%M-%S")
         ).with_suffix(".webp")
         render(anim_frames, file_path)
         animations.append(
             Animation(
                 file_path=file_path,
-                start_time=anim_start_time,
+                start_time=t,
                 source=Animation.Source.TIMER,
+                metadata={"id": timer.pk, "important": important},
             )
         )
+        t += FRAME_COUNT * FRAME_TIME
     new_anims = Animation.objects.bulk_create(animations)
-    return (f"Created {len(new_anims)} timers starting at " +
-            segment_start.strftime(" %-I:%M:%S"))
+    return f"Created {len(new_anims)} timers starting at " + segment_start.strftime(
+        " %-I:%M:%S"
+    )
 
 
 def get_segment_start(start_time, source):
     # For now, assume all animations are continuous.
     # This is not a hard guarantee
     max_start_time = Animation.objects.filter(
-        start_time__gte=start_time,
-        source=source
-    ).aggregate(
-        max_start_time=Max('start_time')
-    )['max_start_time']
+        start_time__gte=start_time, source=source
+    ).aggregate(max_start_time=Max("start_time"))["max_start_time"]
 
     return (
-        Animation.next_time(
-            max_start_time.astimezone(timezone.get_current_timezone())
-        )
+        Animation.next_time(max_start_time.astimezone(timezone.get_current_timezone()))
         if max_start_time
         else start_time
     )
@@ -166,5 +161,6 @@ def generate_rays(start_time: datetime):
             )
         )
     new_anims = Animation.objects.bulk_create(animations)
-    return (f"Created {len(new_anims)} rays starting at " +
-            segment_start.strftime(" %-I:%M:%S"))
+    return f"Created {len(new_anims)} rays starting at " + segment_start.strftime(
+        " %-I:%M:%S"
+    )

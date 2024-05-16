@@ -51,7 +51,6 @@ def post_ha_action(api, action, entity_id):
 
 async def dashboard(request):
     error_data = {"error_message": request.GET.get("error_message", "")}
-    logger.info(f"ed {error_data}")
     ha_data = await ha_info()
     monitoring_data = get_monitoring()
     timer_data = await get_timer()
