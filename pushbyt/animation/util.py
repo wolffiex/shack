@@ -39,7 +39,7 @@ def convert_frame(frame_dir: Path, frame_num: int, frame: Image.Image) -> Path:
     if SWAP_PALETTE:
         frame = swap_palette(frame)
     try:
-        frame.save(frame_file, "WebP", lossless=True)
+        frame.save(frame_file, "WebP", quality=100)
         return frame_file
     except Exception as e:
         logging.error(f"Error encoding frame {frame_num}: {e}")

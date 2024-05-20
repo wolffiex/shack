@@ -29,7 +29,8 @@ def get_preview(_):
 
 
 def time_str(maybe_time):
-    maybe_timez = maybe_time and maybe_time.astimezone(timezone.get_current_timezone())
+    maybe_timez = maybe_time and maybe_time.astimezone(
+        timezone.get_current_timezone())
     return maybe_timez and maybe_time.strftime(" %-I:%M:%S")
 
 
@@ -46,6 +47,10 @@ def choose_anim(anims, now):
             and (not anim.start_time or anim.start_time > now)
         ):
             choice = anim
+    if choice:
+        sa = time_str(choice.served_at)
+        st = time_str(choice.start_time)
+        logger.info(f"Picked {choice.source} {choice.metadata} {sa} {st}")
     return choice
 
 
