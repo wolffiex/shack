@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta
+from itertools import islice
 from pushbyt.animation.rays2 import clock_rays
 from pushbyt.animation.song import song_info
 from pushbyt.animation.timer import timer as timer_frames
@@ -94,15 +95,15 @@ def generate_timer(start_time, timer):
     frames = timer_frames(timer.created_at + timer.duration - segment_start)
     animations = []
     while t < end_time:
-        anim_frames = []
-        anim_frames = [next(frames) for _ in range(FRAME_COUNT)]
+        anim_frames = islice(frames, int(FRAME_COUNT))
         important = t - timer.created_at + timer.duration < timedelta(
             seconds=90
         )
         file_path = (
             Path("render") / t.strftime("%j-%H-%M-%S")
         ).with_suffix(".webp")
-        render(anim_frames, file_path)
+        if not render(anim_frames, file_path):
+            break
         animations.append(
             Animation(
                 file_path=file_path,

@@ -9,12 +9,14 @@ logger = logging.getLogger(__name__)
 
 FRAME_TIME = timedelta(milliseconds=100)
 
-def render(frames, file_path):
+def render(frames, file_path) -> bool:
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         in_files = [
             convert_frame(temp_path, i, frame) for i, frame in enumerate(frames)
         ]
+        if not in_files:
+            return False
         frames_arg = " ".join(
             f"-frame {tf} +{FRAME_TIME.total_seconds() * 1000}" for tf in in_files
         )
@@ -22,6 +24,7 @@ def render(frames, file_path):
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(result.stderr)
+        return True
 
 
 def convert_frame(frame_dir: Path, frame_num: int, frame: Image.Image) -> Path:

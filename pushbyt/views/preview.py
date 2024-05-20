@@ -39,20 +39,21 @@ def choose_anim(anims, now):
     for anim in anims:
         sa = time_str(anim.served_at)
         st = time_str(anim.start_time)
-        logger.info(
-            f"A {anim.source} {anim.metadata} {sa} {st}"
-        )
-        if not anim.served_at and not choice:
+        logger.info(f"A {anim.source} {anim.metadata} {sa} {st}")
+        if (
+            (not choice or choice.source == Animation.Source.TIMER)
+            and not anim.served_at
+            and (not anim.start_time or anim.start_time > now)
+        ):
             choice = anim
     return choice
-
 
 
 def get_animation_list(now):
     return Animation.objects.filter(
         Q(served_at__gte=now - timedelta(minutes=1))
         | Q(start_time__isnull=True, served_at__isnull=True)
-        | Q(start_time__gt=now, start_time__lte=now + timedelta(minutes=30))
+        | Q(start_time__gt=now, start_time__lte=now + timedelta(seconds=30))
     ).order_by(
         F("served_at").asc(nulls_last=True),
         F("start_time").asc(nulls_first=True),
