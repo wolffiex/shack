@@ -116,7 +116,7 @@ LOGGING = {
         }
     },
     "loggers": {
-        "django": {"handlers": ["console"], "propagate":False},
+        "django": {"handlers": ["console"], "propagate": False},
         "root": {"handlers": ["console"], "level": "INFO"},
     },
 }
@@ -148,4 +148,4 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'dist/staticfiles')
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-HA_HOST= os.getenv("HA_HOST", "spine")
+HA_HOST = os.getenv("HA_HOST", "spine")
