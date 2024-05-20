@@ -44,8 +44,7 @@ def post_ha_action(api, action, entity_id):
         "Content-Type": "application/json",
     }
     data = {"entity_id": entity_id}
-    # ha actions can be very slow
-    response = httpx.post(url, headers=headers, json=data, timeout=75)
+    response = httpx.post(url, headers=headers, json=data)
     response.raise_for_status()
 
 

@@ -21,7 +21,8 @@ from django.templatetags.static import static
 
 
 urlpatterns = [
-    path('favicon.ico', RedirectView.as_view(url=static('favicon.ico'), permanent=True)),
+    path('favicon.ico', RedirectView.as_view(
+        url=static('favicon.ico'), permanent=True)),
     path("shack/admin/", admin.site.urls),
     path("pushbyt/", include("pushbyt.urls")),
     path("ha/", include("ha.urls")),
