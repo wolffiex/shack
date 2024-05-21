@@ -12,7 +12,7 @@ class Command(RichCommand):
     help = "Generate doorbell animation"
 
     def handle(self, *args, **options):
-        self.console.print("Rendering doorbell animatino", style="bold green")
+        self.console.print("Rendering doorbell animation", style="bold green")
         black_img = Image.new("RGB", (WIDTH, HEIGHT), "black")
 
         door, bell, bellhop = [Image.open(
