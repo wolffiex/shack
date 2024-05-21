@@ -21,6 +21,7 @@ class Animation(models.Model):
         RAYS = "rays"
         SPOTIFY = "spotify"
         TIMER = "timer"
+        DOORBELL = "doorbell"
 
     source = models.CharField(
         max_length=20, choices=Source.choices, default=Source.STATIC

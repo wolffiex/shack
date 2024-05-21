@@ -7,6 +7,7 @@ from .spotify import (
     login as spotify_login,
     callback as spotify_callback,
 )
+from .doorbell import doorbell_ring
 
 __all__ = [
     "get_preview",
@@ -16,4 +17,5 @@ __all__ = [
     "get_simulator",
     "spotify_login",
     "spotify_callback",
+    "doorbell_ring",
 ]

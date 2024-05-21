@@ -8,7 +8,6 @@ from pushbyt.models import ApiToken
 logger = logging.getLogger(__name__)
 
 
-
 def login(_):
     auth_url = "https://accounts.spotify.com/authorize"
     scope = "user-read-playback-state user-read-currently-playing"
@@ -46,6 +45,3 @@ def callback(request):
     )
     token.save()
     return redirect("dashboard")
-
-
-

@@ -30,7 +30,7 @@ def generate(_):
 
     result = "Exception"
     try:
-        if True: # is_running():
+        if is_running():
             result = generate_animation()
         else:
             result = "Not running"
