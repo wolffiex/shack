@@ -103,7 +103,7 @@ def generate_timer(start_time, timer):
             seconds=90
         )
         file_path = (
-            Path("render") / t.strftime("%j-%H-%M-%S")
+            Path("render") / ("timer_" + t.strftime("%j-%H-%M-%S"))
         ).with_suffix(".webp")
         if not render(anim_frames, file_path):
             break
@@ -155,7 +155,7 @@ def generate_rays(start_time: datetime):
             anim_frames.append(frames.send(time_str))
             t += FRAME_TIME
         file_path = (
-            Path("render") / anim_start_time.strftime("%j-%H-%M-%S")
+            Path("render") / ("ray_" + anim_start_time.strftime("%j-%H-%M-%S"))
         ).with_suffix(".webp")
         render(anim_frames, file_path)
         animations.append(
