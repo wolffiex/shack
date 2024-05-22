@@ -29,45 +29,69 @@ def song_info(
     if not art_url:
         raise ValueError("Missing art not handled")
     art_scroll = gen_album_art(art_url)
-    for _ in range(25):
+    for _ in range(10):
         yield next(art_scroll)
-    yield from show_text(title, font, art_scroll)
-    yield from show_text(artist, font, art_scroll, True)
+    title_scroll = gen_text(title, font, 50)
+    artist_scroll = gen_text(artist, font, 51)
 
-
-def show_text(text, font, art_scroll, reverse_fade=False):
-    FONT_WRAP_WIDTH = 12
     black_img = Image.new("RGB", (WIDTH, HEIGHT), color="black")
+    for i in range(50):
+        title_img = next(title_scroll)
+        art_img = next(art_scroll)
+        fade = min(1, i/25)
+        yield screen_img(fade, title_img, art_img)
+
+    artist_img = next(artist_scroll)
+    for i in range(15):
+        art_img = next(art_scroll)
+        perc = i / 15
+        processed_title = screen_img(1, title_img, art_img)
+        processed_artist = screen_img(1, artist_img, art_img)
+        faded_title = Image.blend(black_img, processed_title, 1-perc)
+        faded_artist = Image.blend(black_img, processed_artist, perc)
+        yield ImageChops.lighter(faded_title, faded_artist)
+
+    for i in range(50):
+        artist_img = next(artist_scroll)
+        art_img = next(art_scroll)
+        fade = min(1, 1 - (i-25)/25)
+        yield screen_img(1-i/50, artist_img, art_img)
+
+    for i in range(25):
+        art_img = next(art_scroll)
+        yield Image.blend(black_img, art_img, 1-i/25)
+
+
+def screen_img(fade, text_img, art_img):
+    processed_image = Image.new("RGB", (WIDTH, HEIGHT), color="black")
+    text_pixels = text_img.load()
+    art_pixels = art_img.load()
+    for x in range(WIDTH):
+        for y in range(HEIGHT):
+            is_in_title = text_pixels[x, y] != (0, 0, 0)
+            if is_in_title:
+                step = 200
+            else:
+                step = -180
+            new_color = step_color(art_pixels[x, y], step * fade)
+            processed_image.putpixel((x, y), new_color)
+    return processed_image
+
+
+def gen_text(text, font, step_count):
+    FONT_WRAP_WIDTH = 12
     wrapped_title = textwrap.wrap(unidecode(text), width=FONT_WRAP_WIDTH)
     title_img = text_image(wrapped_title, font)
     _, title_height = title_img.size
     needs_scroll = title_height > HEIGHT
 
-    TEXT_FRAMES = 50
-    for i in range(TEXT_FRAMES):
-        fade = i/TEXT_FRAMES
-        if reverse_fade:
-            fade = 1-fade
+    for i in range(step_count):
         if needs_scroll:
-            title_overhang = TEXT_FRAMES - (title_height - HEIGHT)
+            title_overhang = step_count - (title_height - HEIGHT)
             title_y = min(title_height - HEIGHT, max(0, i-title_overhang//2))
         else:
             title_y = title_height // 2 - 16
-        title_cropped = title_img.crop((0, title_y, WIDTH, title_y + HEIGHT))
-        title_pixels = title_cropped.load()
-        art_img = next(art_scroll)
-        art_pixels = art_img.load()
-        processed_image = black_img.copy()
-        for x in range(WIDTH):
-            for y in range(HEIGHT):
-                is_in_title = title_pixels[x, y] != (0, 0, 0)
-                if is_in_title:
-                    step = 150
-                else:
-                    step = -180
-                new_color = step_color(art_pixels[x, y], step * fade)
-                processed_image.putpixel((x, y), new_color)
-        yield processed_image
+        yield title_img.crop((0, title_y, WIDTH, title_y + HEIGHT))
 
     # for top in range(0, HEIGHT):
     #     yield art.crop((0, top, WIDTH, top + HEIGHT))

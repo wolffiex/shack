@@ -35,7 +35,7 @@ class Command(RichCommand):
         track_4 = {
             "id": "4",
             "title": "Heart Of Glass Reart for Fass Bing Too Tass",
-            "artist": "Blondie",
+            "artist": "Blondie Fondie Rondi Jongdi Boolongi",
             "art": "https://i.scdn.co/image/ab67616d00004851ace2bedb8e6cfa04207d5c0f",
         }
 
