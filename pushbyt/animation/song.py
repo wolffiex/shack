@@ -1,4 +1,5 @@
 from PIL import Image, ImageDraw, ImageFont, ImageChops
+from collections import defaultdict
 from typing import Generator, Optional
 from io import BytesIO
 import requests
@@ -24,14 +25,50 @@ def step_color(pixel, amount):
 def song_info(
     title: str, artist: str, art_url: Optional[str]
 ) -> Generator[Image.Image, str, None]:
-    black_img = Image.new("RGB", (WIDTH, HEIGHT), color="black")
     font = ImageFont.truetype("./fonts/pixelmix/pixelmix.ttf", 8)
-    FONT_WRAP_WIDTH = 12
     if not art_url:
         raise ValueError("Missing art not handled")
     art_scroll = gen_album_art(art_url)
-    for _ in range(150):
+    for _ in range(25):
         yield next(art_scroll)
+    yield from show_text(title, font, art_scroll)
+    yield from show_text(artist, font, art_scroll, True)
+
+
+def show_text(text, font, art_scroll, reverse_fade=False):
+    FONT_WRAP_WIDTH = 12
+    black_img = Image.new("RGB", (WIDTH, HEIGHT), color="black")
+    wrapped_title = textwrap.wrap(unidecode(text), width=FONT_WRAP_WIDTH)
+    title_img = text_image(wrapped_title, font)
+    _, title_height = title_img.size
+    needs_scroll = title_height > HEIGHT
+
+    TEXT_FRAMES = 50
+    for i in range(TEXT_FRAMES):
+        fade = i/TEXT_FRAMES
+        if reverse_fade:
+            fade = 1-fade
+        if needs_scroll:
+            title_overhang = TEXT_FRAMES - (title_height - HEIGHT)
+            title_y = min(title_height - HEIGHT, max(0, i-title_overhang//2))
+        else:
+            title_y = title_height // 2 - 16
+        title_cropped = title_img.crop((0, title_y, WIDTH, title_y + HEIGHT))
+        title_pixels = title_cropped.load()
+        art_img = next(art_scroll)
+        art_pixels = art_img.load()
+        processed_image = black_img.copy()
+        for x in range(WIDTH):
+            for y in range(HEIGHT):
+                is_in_title = title_pixels[x, y] != (0, 0, 0)
+                if is_in_title:
+                    step = 150
+                else:
+                    step = -180
+                new_color = step_color(art_pixels[x, y], step * fade)
+                processed_image.putpixel((x, y), new_color)
+        yield processed_image
+
     # for top in range(0, HEIGHT):
     #     yield art.crop((0, top, WIDTH, top + HEIGHT))
 
@@ -95,7 +132,8 @@ def gen_album_art(art_url):
                           color="black")
     tiled_img.paste(art, (0, 0))
     tiled_img.paste(art, (0, ART_HEIGHT + BORDER_HEIGHT))
-    border = gen_art_border()
+    dominant_color = get_dominant_color(art)
+    border = gen_art_border(dominant_color)
     while True:
         for top in range(0, ART_HEIGHT + 3):
             frame = tiled_img.copy()
@@ -104,14 +142,13 @@ def gen_album_art(art_url):
             yield frame.crop((0, top, WIDTH, top + HEIGHT))
 
 
-def gen_art_border():
+def gen_art_border(color):
     diamonds = Image.new('RGB', (68, 3), color='black')
     draw = ImageDraw.Draw(diamonds)
     reverse_dir = False
 
     for x in range(0, 68, 4):
-        draw.polygon([(x, 1), (x+1, 0), (x+2, 1), (x+1, 2)],
-                     fill=(100, 100, 100))
+        draw.polygon([(x, 1), (x+1, 0), (x+2, 1), (x+1, 2)], fill=color)
 
     while True:
         reverse_dir = not reverse_dir
@@ -120,6 +157,26 @@ def gen_art_border():
                 if reverse_dir:
                     x = 4 - x
                 yield diamonds.crop((x, 0, 64+x, 3))
+
+
+def get_dominant_color(image):
+    pixels = image.load()
+    width, height = image.size
+
+    color_count = defaultdict(int)
+
+    for x in range(width):
+        for y in range(height):
+            color = pixels[x, y]
+            quantized_color = tuple(int(channel / 10) for channel in color)
+            if sum(quantized_color) > 8:
+                color_count[quantized_color] += 1
+
+    if color_count:
+        dominant_color = max(color_count, key=color_count.get)
+        return tuple(channel * 10 for channel in dominant_color)
+    else:
+        return (255, 255, 255)
 
 
 def text_image(lines, font):
