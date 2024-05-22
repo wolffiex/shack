@@ -12,10 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @never_cache
-def get_preview(request):
-    logger.info("Preview headers")
-    for header, value in request.headers.items():
-        logger.info(f"{header}: {value}")
+def get_preview(_):
     now = timezone.now()
     anims = get_animation_list(now)
     anim = choose_anim(list(anims), now) if anims else None
