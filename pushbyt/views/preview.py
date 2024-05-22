@@ -4,6 +4,7 @@ from pushbyt.models import Animation
 from django.db.models import Q, F
 from django.views.decorators.cache import never_cache
 from datetime import timedelta, datetime
+from functools import partial
 from functools import cmp_to_key
 import logging
 
@@ -35,15 +36,14 @@ def time_str(maybe_time):
     return maybe_timez and maybe_time.strftime(" %-I:%M:%S")
 
 
-def choose_anim(anims, now):
+def choose_anim(anims, now: datetime):
     logger.info(f"Choose anim at {time_str(now)} from list of {len(anims)}")
     summary = summarize_anims(anims, now)
-    anims.sort(key=cmp_to_key(
-        lambda a1, a2: compare_animations(a1, a2, summary)))
+    anims.sort(key=cmp_to_key(partial(compare_animations, summary=summary)))
     for anim in anims:
         sa = time_str(anim.served_at)
         st = time_str(anim.start_time)
-        logger.info(f"A {anim.source} {sa} {st} {anim.metadata}")
+        logger.info(f"A {anim.source} {anim.pk} {sa} {st} {anim.metadata}")
     return anims[0]
 
 
@@ -61,59 +61,67 @@ def get_animation_list(now):
 
 def summarize_anims(anims, now):
     last_timer = None
+    last_ray = None
     for anim in [a for a in anims if a.served_at]:
         if is_timer(anim):
             last_timer = anim
+        elif is_ray(anim):
+            last_ray = anim
     return {
+        "now": now,
         "last_timer": last_timer,
+        "last_ray": last_ray,
     }
-
-
-def compare_animations(
-    anim1: Animation, anim2: Animation, summary
-) -> int:
-    anims = [anim1, anim2]
-    anim1_not_served, anim2_not_served = [not a.served_at for a in anims]
-    if anim1_not_served != anim2_not_served:
-        return -1 if anim1_not_served else 1
-    elif not anim1_not_served:
-        # Both have been served
-        return -1 if anim1.served_at > anim2.served_at else 1
-
-    # If we get here, neither animation was served
-    anim1_door, anim2_door = [
-        a.source == Animation.Source.DOORBELL for a in anims
-    ]
-    if anim1_door != anim2_door:
-        # Case where they are both doorbell doesn't matter
-        return -1 if anim1_door else 1
-
-    anim1_is_important, anim2_is_important = [
-        is_timer(a) and a.metadata["important"]
-        for a in anims
-    ]
-
-    if anim1_is_important != anim2_is_important:
-        return -1 if anim1_is_important else 1
-
-    anim1_no_start, anim2_no_start = [not a.start_time for a in anims]
-    if anim1_no_start != anim2_no_start:
-        return -1 if anim1_no_start else 1
-
-    # If start times don't match then both are not None
-    if anim1.start_time != anim2.start_time:
-        return -1 if anim1.start_time < anim2.start_time else 1
-
-    # If we get here, both anims have start_time which is the same
-    # For now, choose between rays and timer
-    timer_shown_recently = bool(summary["last_timer"])
-    if is_timer(anim1):
-        return -1 if not timer_shown_recently else 1
-    if is_timer(anim2):
-        return 1 if not timer_shown_recently else -1
-
-    return 0
 
 
 def is_timer(anim):
     return anim.source == Animation.Source.TIMER
+
+
+def is_ray(anim):
+    return anim.source == Animation.Source.RAYS
+
+
+def is_served(animation):
+    return animation.served_at is not None
+
+
+def is_important_and_soon(animation, now):
+    is_important = animation.metadata.get("important", False)
+    return (is_important and (not animation.start_time or
+            animation.start_time - now < timedelta(seconds=15)))
+
+
+def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
+    def compare_by_predicate(pred):
+        nonlocal anim1, anim2
+        p1, p2 = pred(anim1), pred(anim2)
+        return 0 if p1 == p2 else -1 if p1 else 1
+
+    if is_served(anim1) and is_served(anim2):
+        return -1 if anim1.served_at > anim2.served_at else 1
+
+    predicates = [
+        # unserved before served
+        lambda a: not is_served(a),
+        # doorbell before everything
+        lambda a: a.source == Animation.Source.DOORBELL,
+        # metadata with important: True
+        lambda a: is_important_and_soon(a, summary["now"]),
+        # ephemeral content
+        lambda a: a.start_time is None,
+    ]
+
+    if anim1.start_time and anim2.start_time:
+        min_start_time = min(anim1.start_time, anim2.start_time)
+        predicates.append(lambda a: a.start_time == min_start_time)
+
+    if not summary["last_timer"]:
+        predicates.append(is_timer)
+
+    if not summary["last_ray"]:
+        predicates.append(is_ray)
+
+    return next(
+        filter(lambda r: r != 0, map(compare_by_predicate, predicates)),
+        0)

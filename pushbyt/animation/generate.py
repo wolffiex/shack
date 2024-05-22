@@ -81,11 +81,12 @@ def check_timer(start_time):
         timer_animations = timer_animations.exclude(metadata__id=timer.pk)
 
     delete_result = timer_animations.delete()
+    results.append(f"Deleted old timers {delete_result}")
+
     if timer and timer.is_running:
         render_result = generate_timer(start_time, timer)
         results.append(render_result)
 
-    results.append(f"Deleted old timers {delete_result}")
     return "\n".join(results)
 
 
@@ -166,6 +167,11 @@ def generate_rays(start_time: datetime):
             )
         )
     new_anims = Animation.objects.bulk_create(animations)
-    return f"Created {len(new_anims)} rays starting at " + segment_start.strftime(
-        " %-I:%M:%S"
-    )
+    return (f"Created {len(new_anims)} rays starting at "
+            + segment_start.strftime(" %-I:%M:%S"))
+
+
+def update_timer():
+    now = timezone.now().astimezone(timezone.get_current_timezone())
+    aligned_time = Animation.align_time(now)
+    return check_timer(aligned_time)
