@@ -4,7 +4,7 @@ from pathlib import Path
 from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
-DOORBELL_PATH = (Path("render") / "doorbell").with_suffix(".webp")
+DOORBELL_PATH = (Path("static") / "doorbell").with_suffix(".webp")
 
 
 def doorbell_ring(_):
