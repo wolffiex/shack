@@ -8,6 +8,7 @@ from .spotify import (
     callback as spotify_callback,
 )
 from .doorbell import doorbell_ring
+from .cleanup import cleanup
 
 __all__ = [
     "get_preview",
@@ -18,4 +19,5 @@ __all__ = [
     "spotify_login",
     "spotify_callback",
     "doorbell_ring",
+    "cleanup",
 ]
