@@ -22,8 +22,6 @@ SCALED_WIDTH, SCALED_HEIGHT = SCALE_FACTOR * WIDTH, SCALE_FACTOR * HEIGHT
 
 def get_time_pixels(time_str):
     image = Image.new("RGB", (WIDTH, HEIGHT), color="black")
-    # font = ImageFont.truetype("./fonts/pixelmix/pixelmix.ttf", 8)
-    # font = ImageFont.truetype("./fonts/freecam/freecam v2.ttf", 16)
     font = ImageFont.truetype("./fonts/pixel12x10/Pixel12x10-v1.1.0.ttf", 16)
     draw = ImageDraw.Draw(image)
     text_position = (0, 0)
