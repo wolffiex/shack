@@ -15,8 +15,9 @@ class Command(RichCommand):
         self.console.print("Rendering doorbell animation", style="bold green")
         black_img = Image.new("RGB", (WIDTH, HEIGHT), "black")
 
-        door, bell, bellhop = [Image.open(
-            f"static/{f}.png") for f in ["door", "bell", "bellhop"]]
+        door, bell, bellhop = [
+            Image.open(f"static/{f}.png") for f in ["door", "bell", "bellhop"]
+        ]
 
         file_path = (Path("render") / "doorbell").with_suffix(".webp")
         fp_string = file_path.resolve().as_posix()
@@ -29,5 +30,5 @@ class Command(RichCommand):
             frame.paste(door, (i % 64 - door.width, 1))
             frames.append(frame)
         render(frames, fp_string)
-        self.console.print('Filepath:')
+        self.console.print("Filepath:")
         self.console.print(fp_string, style="bold green")

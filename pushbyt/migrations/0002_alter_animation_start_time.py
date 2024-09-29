@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pushbyt', '0001_initial'),
+        ("pushbyt", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='animation',
-            name='start_time',
+            model_name="animation",
+            name="start_time",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

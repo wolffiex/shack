@@ -16,19 +16,16 @@ def render(frames, file_path) -> bool:
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         in_files = [
-            convert_frame(temp_path, i, frame)
-            for i, frame in enumerate(frames)
+            convert_frame(temp_path, i, frame) for i, frame in enumerate(frames)
         ]
         if not in_files:
             return False
         frames_arg = " ".join(
-            f"-frame {tf} +{FRAME_TIME.total_seconds() * 1000}"
-            for tf in in_files
+            f"-frame {tf} +{FRAME_TIME.total_seconds() * 1000}" for tf in in_files
         )
         cmd = f"webpmux {
             frames_arg} -loop 1 -bgcolor 255,255,255,255 -o {file_path}"
-        result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(result.stderr)
         return True

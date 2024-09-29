@@ -1,4 +1,6 @@
 const container = document.getElementById('container');
+let userAnimationPath = null
+const globalAnimationPath = "/pushbyt/v1/preview.webp"
 
 function loadWebPImage() {
   return new Promise((resolve, reject) => {
@@ -12,9 +14,9 @@ function loadWebPImage() {
       reject(error);
     };
     const cacheBuster = Date.now();
-    
+
     // Append the cache buster to the image URL
-    webpImage.src = `/pushbyt/v1/preview.webp?t=${cacheBuster}`;
+    webpImage.src = (userAnimationPath || globalAnimationPath) + `?t=${cacheBuster}`;
   });
 }
 
@@ -24,7 +26,7 @@ function replaceImage(img) {
   }
   container.appendChild(img);
   console.log("Placed img")
-  prepNextImage()
+  if (!userAnimationPath) prepNextImage()
 }
 
 function prepNextImage() {
@@ -62,3 +64,10 @@ function generate() {
 
 setTimeout(generate, 1000)
 setInterval(generate, 60000)
+
+document.getElementById("animationPathButton").onclick = (e) => {
+  e.preventDefault()
+  userAnimationPath = document.getElementById("animationPath").value
+  console.log(userAnimationPath)
+  loadWebPImage().then(img => replaceImage(img))
+}

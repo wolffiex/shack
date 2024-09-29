@@ -17,8 +17,6 @@ class Command(RichCommand):
     def generate(self):
         now = datetime.now()
         frames = islice(radar(now), 0, 600)
-        file_path = (Path("render") / "radar-test").with_suffix(
-            ".webp"
-        )
+        file_path = (Path("render") / "radar-test").with_suffix(".webp")
         render(frames, file_path)
         return file_path.resolve().as_posix()

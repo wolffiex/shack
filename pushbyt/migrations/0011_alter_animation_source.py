@@ -4,15 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pushbyt', '0010_remove_animation_unique_start_time_if_not_null_and_more'),
+        ("pushbyt", "0010_remove_animation_unique_start_time_if_not_null_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='animation',
-            name='source',
-            field=models.CharField(choices=[('static', 'Static'), ('rays', 'Rays'), ('spotify', 'Spotify'), ('timer', 'Timer')], default='static', max_length=20),
+            model_name="animation",
+            name="source",
+            field=models.CharField(
+                choices=[
+                    ("static", "Static"),
+                    ("rays", "Rays"),
+                    ("spotify", "Spotify"),
+                    ("timer", "Timer"),
+                ],
+                default="static",
+                max_length=20,
+            ),
         ),
     ]

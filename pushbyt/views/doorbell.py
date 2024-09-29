@@ -9,6 +9,7 @@ DOORBELL_PATH = (Path("static") / "doorbell").with_suffix(".webp")
 
 def doorbell_ring(_):
     anim = Animation(
-        file_path=DOORBELL_PATH, source=Animation.Source.DOORBELL, metadata={})
+        file_path=DOORBELL_PATH, source=Animation.Source.DOORBELL, metadata={}
+    )
     anim.save()
     return HttpResponse("ok")

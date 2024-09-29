@@ -38,7 +38,7 @@ def song_info(
     for i in range(50):
         title_img = next(title_scroll)
         art_img = next(art_scroll)
-        fade = min(1, i/25)
+        fade = min(1, i / 25)
         yield screen_img(fade, title_img, art_img)
 
     artist_img = next(artist_scroll)
@@ -47,19 +47,19 @@ def song_info(
         perc = i / 15
         processed_title = screen_img(1, title_img, art_img)
         processed_artist = screen_img(1, artist_img, art_img)
-        faded_title = Image.blend(black_img, processed_title, 1-perc)
+        faded_title = Image.blend(black_img, processed_title, 1 - perc)
         faded_artist = Image.blend(black_img, processed_artist, perc)
         yield ImageChops.lighter(faded_title, faded_artist)
 
     for i in range(50):
         artist_img = next(artist_scroll)
         art_img = next(art_scroll)
-        fade = min(1, 1 - (i-25)/25)
-        yield screen_img(1-i/50, artist_img, art_img)
+        fade = min(1, 1 - (i - 25) / 25)
+        yield screen_img(1 - i / 50, artist_img, art_img)
 
     for i in range(25):
         art_img = next(art_scroll)
-        yield Image.blend(black_img, art_img, 1-i/25)
+        yield Image.blend(black_img, art_img, 1 - i / 25)
 
 
 def screen_img(fade, text_img, art_img):
@@ -88,7 +88,7 @@ def gen_text(text, font, step_count):
     for i in range(step_count):
         if needs_scroll:
             title_overhang = step_count - (title_height - HEIGHT)
-            title_y = min(title_height - HEIGHT, max(0, i-title_overhang//2))
+            title_y = min(title_height - HEIGHT, max(0, i - title_overhang // 2))
         else:
             title_y = title_height // 2 - 16
         yield title_img.crop((0, title_y, WIDTH, title_y + HEIGHT))
@@ -152,8 +152,7 @@ def gen_album_art(art_url):
     response = requests.get(art_url)
     art_data = response.content
     art = Image.open(BytesIO(art_data))
-    tiled_img = Image.new("RGB", (WIDTH, ART_HEIGHT*2 + BORDER_HEIGHT),
-                          color="black")
+    tiled_img = Image.new("RGB", (WIDTH, ART_HEIGHT * 2 + BORDER_HEIGHT), color="black")
     tiled_img.paste(art, (0, 0))
     tiled_img.paste(art, (0, ART_HEIGHT + BORDER_HEIGHT))
     dominant_color = get_dominant_color(art)
@@ -167,12 +166,12 @@ def gen_album_art(art_url):
 
 
 def gen_art_border(color):
-    diamonds = Image.new('RGB', (68, 3), color='black')
+    diamonds = Image.new("RGB", (68, 3), color="black")
     draw = ImageDraw.Draw(diamonds)
     reverse_dir = False
 
     for x in range(0, 68, 4):
-        draw.polygon([(x, 1), (x+1, 0), (x+2, 1), (x+1, 2)], fill=color)
+        draw.polygon([(x, 1), (x + 1, 0), (x + 2, 1), (x + 1, 2)], fill=color)
 
     while True:
         reverse_dir = not reverse_dir
@@ -180,7 +179,7 @@ def gen_art_border(color):
             for x in range(4):
                 if reverse_dir:
                     x = 4 - x
-                yield diamonds.crop((x, 0, 64+x, 3))
+                yield diamonds.crop((x, 0, 64 + x, 3))
 
 
 def get_dominant_color(image):

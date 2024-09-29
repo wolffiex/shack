@@ -59,7 +59,7 @@ class Animation(models.Model):
                 Q(start_time__isnull=True, served_at__isnull=True)
                 | Q(start_time__gt=current_time)
             )
-            .order_by(F('start_time').asc(nulls_first=True), 'created_at')
+            .order_by(F("start_time").asc(nulls_first=True), "created_at")
             .first()
         )
 
@@ -84,7 +84,5 @@ class Animation(models.Model):
     @property
     def url(self):
         return (
-            "/pushbyt/" + self.file_path
-            if self.file_path
-            else static("missing.webp")
+            "/pushbyt/" + self.file_path if self.file_path else static("missing.webp")
         )

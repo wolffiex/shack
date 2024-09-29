@@ -1,4 +1,3 @@
-
 from django.http import Http404
 from django.shortcuts import render
 from pushbyt.animation.rays2 import clock_rays

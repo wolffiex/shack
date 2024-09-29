@@ -4,18 +4,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pushbyt', '0009_alter_animation_metadata'),
+        ("pushbyt", "0009_alter_animation_metadata"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='animation',
-            name='unique_start_time_if_not_null',
+            model_name="animation",
+            name="unique_start_time_if_not_null",
         ),
         migrations.AddConstraint(
-            model_name='animation',
-            constraint=models.UniqueConstraint(condition=models.Q(('start_time__isnull', False)), fields=('start_time', 'source'), name='unique_start_time_source_if_not_null'),
+            model_name="animation",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("start_time__isnull", False)),
+                fields=("start_time", "source"),
+                name="unique_start_time_source_if_not_null",
+            ),
         ),
     ]

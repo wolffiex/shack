@@ -31,8 +31,7 @@ def control(request, name):
         post_ha_action(api, action, entity_id)
     except Exception as e:
         error_message = quote(str(e))
-        return redirect(reverse("dashboard") +
-                        f"?error_message={error_message}")
+        return redirect(reverse("dashboard") + f"?error_message={error_message}")
 
     return redirect("dashboard")
 
@@ -53,13 +52,14 @@ async def dashboard(request):
     ha_data = await ha_info()
     monitoring_data = get_monitoring()
     timer_data = await get_timer()
-    return render(request, "dashboard.html",
-                  (ha_data | monitoring_data | timer_data | error_data))
+    return render(
+        request, "dashboard.html", (ha_data | monitoring_data | timer_data | error_data)
+    )
 
 
 @sync_to_async
 def get_timer():
-    timer = Timer.objects.order_by('-created_at').first()
+    timer = Timer.objects.order_by("-created_at").first()
     if timer and not timer.is_running:
         timer = None
     return {"timer": timer}

@@ -3,6 +3,7 @@
 <html>
 
 {% with IMG_ID="webp-img" %}
+
 <head>
   <script type="module" src="/pushbyt/static/js/simulator.js">
   </script>
@@ -10,9 +11,11 @@
     h1 {
       font-size: medium;
     }
+
     #container {
       display: flex;
     }
+
     #container img {
       image-rendering: pixelated;
     }
@@ -22,6 +25,10 @@
 <body>
   <h1>Tidbyt simulator</h1>
   <div id="container">
+  </div>
+  <div>
+    <input id="animationPath" type="text" placeholder="animation path"/>
+    <button id="animationPathButton">Set</button>
   </div>
 </body>
 {% endwith %}

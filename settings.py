@@ -140,7 +140,7 @@ STATIC_URL = "pushbyt/static/"
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
-STATIC_ROOT = os.path.join(BASE_DIR, 'dist/staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, "dist/staticfiles")
 
 
 # Default primary key field type

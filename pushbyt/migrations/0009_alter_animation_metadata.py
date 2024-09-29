@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pushbyt', '0008_alter_animation_metadata'),
+        ("pushbyt", "0008_alter_animation_metadata"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='animation',
-            name='metadata',
+            model_name="animation",
+            name="metadata",
             field=models.JSONField(blank=True, default=dict),
         ),
     ]

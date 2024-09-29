@@ -48,7 +48,7 @@ class FrameGenerator(ABC):
 
 class Spritz(FrameGenerator):
     FRAME_TIME = timedelta(milliseconds=120)
-    TEXT_TOP = FrameGenerator.HEIGHT /2 - 4
+    TEXT_TOP = FrameGenerator.HEIGHT / 2 - 4
     TEXT_MID = FrameGenerator.WIDTH // 3
 
     def __init__(self, start_time: datetime, copy):
@@ -61,7 +61,7 @@ class Spritz(FrameGenerator):
         for token in self.tokens:
             yield self.render(token, font)
 
-    def render(self, token:str, font) -> Image.Image:
+    def render(self, token: str, font) -> Image.Image:
         # print(f"|{token}|")
         start, mid, end = self.word_split(token)
         image = Image.new("RGB", (self.WIDTH, self.HEIGHT), color="black")
@@ -78,7 +78,7 @@ class Spritz(FrameGenerator):
             draw.text((end_left, self.TEXT_TOP), end, font=font, fill="white")
         return image
 
-    def word_split(self, token:str):
+    def word_split(self, token: str):
         token_len = len(token)
         if token_len == 1:
             return "", token, ""
@@ -91,7 +91,7 @@ class Spritz(FrameGenerator):
         else:
             return token[0:3], token[3], token[4:]
 
-    def measure(self, text:str, font) -> int:
+    def measure(self, text: str, font) -> int:
         image = Image.new("RGB", (self.WIDTH, self.HEIGHT), color="black")
         draw = ImageDraw.Draw(image)
         bbox = draw.textbbox((0, 0), text, font=font)

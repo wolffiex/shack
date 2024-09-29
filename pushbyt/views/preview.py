@@ -31,8 +31,7 @@ def get_preview(_):
 
 
 def time_str(maybe_time):
-    maybe_timez = maybe_time and maybe_time.astimezone(
-        timezone.get_current_timezone())
+    maybe_timez = maybe_time and maybe_time.astimezone(timezone.get_current_timezone())
     return maybe_timez and maybe_time.strftime(" %-I:%M:%S")
 
 
@@ -88,8 +87,9 @@ def is_served(animation):
 
 def is_important_and_soon(animation, now):
     is_important = animation.metadata.get("important", False)
-    return (is_important and (not animation.start_time or
-            animation.start_time - now < timedelta(seconds=15)))
+    return is_important and (
+        not animation.start_time or animation.start_time - now < timedelta(seconds=15)
+    )
 
 
 def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
@@ -122,6 +122,4 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
     if not summary["last_ray"]:
         predicates.append(is_ray)
 
-    return next(
-        filter(lambda r: r != 0, map(compare_by_predicate, predicates)),
-        0)
+    return next(filter(lambda r: r != 0, map(compare_by_predicate, predicates)), 0)

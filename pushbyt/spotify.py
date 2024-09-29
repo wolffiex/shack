@@ -28,8 +28,7 @@ def get_access_token() -> str:
         client_id = spotify["client_id"]
         client_secret = spotify["client_secret"]
 
-        auth_header = base64.b64encode(
-            f"{client_id}:{client_secret}".encode()).decode()
+        auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
 
         request_data = {
             "grant_type": "refresh_token",
@@ -51,8 +50,7 @@ def now_playing():
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
-    response = requests.get(
-        "https://api.spotify.com/v1/me/player", headers=headers)
+    response = requests.get("https://api.spotify.com/v1/me/player", headers=headers)
     response.raise_for_status()
     if not response.text.strip():
         return
@@ -64,8 +62,7 @@ def now_playing():
     track_title = data["item"]["name"]
     track_id = data["item"]["id"]
 
-    artist_names = ", ".join(artist["name"]
-                             for artist in data["item"]["artists"])
+    artist_names = ", ".join(artist["name"] for artist in data["item"]["artists"])
 
     art_url = None
     for image in data["item"]["album"]["images"]:

@@ -27,8 +27,6 @@ class Command(RichCommand):
     def generate(self, info):
         name, delta = info
         frames = list(islice(timer(delta), 300))
-        file_path = (Path("render") / f"timer-{name}").with_suffix(
-            ".webp"
-        )
+        file_path = (Path("render") / f"timer-{name}").with_suffix(".webp")
         render(frames, file_path)
         return name, file_path.resolve().as_posix()

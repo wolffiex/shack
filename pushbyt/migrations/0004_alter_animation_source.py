@@ -4,15 +4,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pushbyt', '0003_animation_metadata_animation_source'),
+        ("pushbyt", "0003_animation_metadata_animation_source"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='animation',
-            name='source',
-            field=models.CharField(choices=[('static', 'Static'), ('rays', 'Rays'), ('spotify', 'Spotify')], default='static', max_length=20),
+            model_name="animation",
+            name="source",
+            field=models.CharField(
+                choices=[
+                    ("static", "Static"),
+                    ("rays", "Rays"),
+                    ("spotify", "Spotify"),
+                ],
+                default="static",
+                max_length=20,
+            ),
         ),
     ]

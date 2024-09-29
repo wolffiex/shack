@@ -45,9 +45,7 @@ def check_spotify():
     track_id = track_info["id"]
     track_title = track_info["title"]
     try:
-        last_spotify = Animation.objects.filter(
-            source=Animation.Source.SPOTIFY
-        ).latest(
+        last_spotify = Animation.objects.filter(source=Animation.Source.SPOTIFY).latest(
             "created_at"
         )
         if last_spotify.metadata["id"] == track_id:
@@ -60,8 +58,7 @@ def check_spotify():
     file_path = (Path("render") / f"spotify-{track_id}").with_suffix(".webp")
     render(frames, file_path)
     anim = Animation(
-        file_path=file_path, source=Animation.Source.SPOTIFY, metadata={
-            "id": track_id}
+        file_path=file_path, source=Animation.Source.SPOTIFY, metadata={"id": track_id}
     )
     anim.save()
     return f"Spotify now playing {track_title}"
@@ -100,9 +97,7 @@ def generate_timer(start_time, timer):
     animations = []
     while t < end_time:
         anim_frames = islice(frames, int(FRAME_COUNT))
-        important = timer.created_at + timer.duration - t < timedelta(
-            seconds=90
-        )
+        important = timer.created_at + timer.duration - t < timedelta(seconds=90)
         file_path = (
             Path("render") / ("timer_" + t.strftime("%j-%H-%M-%S"))
         ).with_suffix(".webp")
@@ -131,8 +126,7 @@ def get_segment_start(start_time, source):
     ).aggregate(max_start_time=Max("start_time"))["max_start_time"]
 
     return (
-        Animation.next_time(max_start_time.astimezone(
-            timezone.get_current_timezone()))
+        Animation.next_time(max_start_time.astimezone(timezone.get_current_timezone()))
         if max_start_time
         else start_time
     )
@@ -167,8 +161,9 @@ def generate_rays(start_time: datetime):
             )
         )
     new_anims = Animation.objects.bulk_create(animations)
-    return (f"Created {len(new_anims)} rays starting at "
-            + segment_start.strftime(" %-I:%M:%S"))
+    return f"Created {len(new_anims)} rays starting at " + segment_start.strftime(
+        " %-I:%M:%S"
+    )
 
 
 def update_timer():

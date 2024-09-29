@@ -10,4 +10,5 @@ class Lock(models.Model):
     name = models.CharField(max_length=100, unique=True)
     acquired = models.BooleanField(default=False)
 
-__all__ =["ApiToken", "Animation", "Lock"]
+
+__all__ = ["ApiToken", "Animation", "Lock"]

@@ -18,7 +18,8 @@ def cleanup(_):
         logger.info(find_msg)
 
         deleted_animations = Animation.objects.filter(
-            created_at__lt=four_hours_ago).delete()
+            created_at__lt=four_hours_ago
+        ).delete()
         deleted_count = deleted_animations[0] if deleted_animations else 0
         model_msg = f"Number of Animation models deleted: {deleted_count}"
         logger.info(model_msg)

@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pushbyt', '0006_apitoken'),
+        ("pushbyt", "0006_apitoken"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='apitoken',
-            name='expires_in',
+            model_name="apitoken",
+            name="expires_in",
             field=models.IntegerField(default=100),
             preserve_default=False,
         ),

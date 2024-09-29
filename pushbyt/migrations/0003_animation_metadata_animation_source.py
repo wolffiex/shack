@@ -4,21 +4,28 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pushbyt', '0002_alter_animation_start_time'),
+        ("pushbyt", "0002_alter_animation_start_time"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='animation',
-            name='metadata',
+            model_name="animation",
+            name="metadata",
             field=models.JSONField(default=dict),
         ),
         migrations.AddField(
-            model_name='animation',
-            name='source',
-            field=models.CharField(choices=[('static', 'Static'), ('rays', 'Clock Rays'), ('spotify', 'Spotify')], default='static', max_length=20),
+            model_name="animation",
+            name="source",
+            field=models.CharField(
+                choices=[
+                    ("static", "Static"),
+                    ("rays", "Clock Rays"),
+                    ("spotify", "Spotify"),
+                ],
+                default="static",
+                max_length=20,
+            ),
             preserve_default=False,
         ),
     ]
