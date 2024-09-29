@@ -24,30 +24,35 @@ def get_time_img(font, text):
     image = Image.new("RGBA", (32, 32), color=(0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
     text_position = (0, 0)
+    # text_width, text_height = draw.textsize(text, font=font)
+    # text_position = ((32 - text_width) // 2, (32 - text_height) // 2)
     draw.text(text_position, text, font=font, fill="gray")
 
     # Get the list of white pixel coordinates as a generator
     pixels = image.load()
-    white_pixels = (
-        (x, y) for x in range(32) for y in range(32) if pixels[x, y] != (0, 0, 0)
-    )
+    non_transparent_pixels = [
+        (x, y) for x in range(32) for y in range(32) if pixels[x, y][3] != 0
+    ]
 
-    if not any(white_pixels):
+    if not non_transparent_pixels:
         return image
 
     # Calculate the minimum and maximum x and y coordinates
-    x_coords, y_coords = zip(*white_pixels)
+    x_coords, y_coords = zip(*non_transparent_pixels)
     left, right = min(x_coords), max(x_coords)
     top, bottom = min(y_coords), max(y_coords)
 
-    # Crop the image based on the bounding box
-    cropped_image = image.crop((left, top, right + 1, bottom + 1))
+    # Calculate the center position
+    center_x = (left + right) // 2
+    center_y = (top + bottom) // 2
 
-    # Create a new 32x32 image and paste the cropped image in the center
+    # Calculate the offset to center the text within the 32x32 square
+    offset_x = 16 - center_x
+    offset_y = 16 - center_y
+
+    # Create a new 32x32 image and paste the original image with the offset
     result = Image.new("RGBA", (32, 32), color=(0, 0, 0, 0))
-    x_off = (32 - cropped_image.width) // 2
-    y_off = (32 - cropped_image.height) // 2
-    result.paste(cropped_image, (x_off, y_off))
+    result.paste(image, (offset_x, offset_y))
 
     return result
 
