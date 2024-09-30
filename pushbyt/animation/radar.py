@@ -17,12 +17,12 @@ def radar(start_time: datetime):
     time_image = Image.new("RGBA", (WIDTH, HEIGHT), color="black")
     time_image.paste(hours_img, box=(0, 0))
     time_image.paste(mins_img, box=(32, 0))
-    time_pix: dict[tuple[int,int] , bool] = dict()
+    time_pix: dict[tuple[int,int] , float] = dict()
     for y in range(HEIGHT):
         for x in range(WIDTH):
             p = x, y
             if time_image.getpixel(p) != (0,0,0,0):
-                time_pix[p] = False
+                time_pix[p] = 0.0
     while True:
         yield render_frame(datetime_to_radian(t), time_pix)
 
@@ -99,21 +99,18 @@ def render_frame(radian, time_pix):
     non_black_points.sort(key=lambda point: 
         math.sqrt((point[0] - center_x) ** 2 + (point[1] - center_y) ** 2))
 
-    i = 1.0
     for p in non_black_points:
         value = alpha.getpixel(p)
         if p in time_pix:
-            if not time_pix[p] and value > 150:
-                i -= .4
-                time_pix[p] = True
-        new_value = int(value * max(0, i))
-        alpha.putpixel(p, new_value)
+            time_pix[p] = min(255, time_pix[p] + value)
 
     time_image = Image.new("RGBA", (WIDTH, HEIGHT), color="black")
     time_draw = ImageDraw.Draw(time_image)
     for p in time_pix:
-        if time_pix[p]:
-            time_draw.point(p, fill=(0, 255,255, 255))
+        v = round(time_pix[p])
+        time_pix[p] = max(0, time_pix[p] - 0.5)
+        # print(v)
+        time_draw.point(p, fill=(0, v, v, 255)) # time_pix[p]))
 
     masked_ray = Image.new("RGBA", ray_image.size)
     masked_ray.paste(ray_image)
