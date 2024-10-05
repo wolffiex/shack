@@ -17,14 +17,8 @@ def radar(start_time: datetime):
     time_image = Image.new("RGBA", (WIDTH, HEIGHT), color="black")
     time_image.paste(hours_img, box=(0, 0))
     time_image.paste(mins_img, box=(32, 0))
-    time_pix: dict[tuple[int,int] , float] = dict()
-    for y in range(HEIGHT):
-        for x in range(WIDTH):
-            p = x, y
-            if time_image.getpixel(p) != (0,0,0,0):
-                time_pix[p] = 0.0
     while True:
-        yield render_frame(datetime_to_radian(t), time_pix)
+        yield render_frame(datetime_to_radian(t), time_image)
 
         t += FRAME_TIME
 
@@ -35,7 +29,7 @@ def get_time_img(font, text):
     text_position = (0, 0)
     # text_width, text_height = draw.textsize(text, font=font)
     # text_position = ((32 - text_width) // 2, (32 - text_height) // 2)
-    draw.text(text_position, text, font=font, fill="white")
+    draw.text(text_position, text, font=font, fill="red")
 
     # Get the list of white pixel coordinates as a generator
     pixels = image.load()
@@ -67,7 +61,7 @@ def get_time_img(font, text):
 
 
 def second_hand_img(radian) -> Image.Image:
-    image = Image.new("RGBA", (SCALED_WIDTH, SCALED_HEIGHT), color="black")
+    image = Image.new("L", (SCALED_WIDTH, SCALED_HEIGHT), color="black")
     center_x, center_y = SCALED_WIDTH // 2, SCALED_HEIGHT // 2
     length = 400
 
@@ -77,47 +71,30 @@ def second_hand_img(radian) -> Image.Image:
 
     draw = ImageDraw.Draw(image)
 
-    draw.line((center_x, center_y, end_x, end_y), fill="yellow", width=SCALE_FACTOR)
+    draw.line((center_x, center_y, end_x, end_y), fill="white", width=SCALE_FACTOR)
 
     image = image.resize((WIDTH, HEIGHT), resample=Image.LANCZOS)
 
     return image
 
-def render_frame(radian, time_pix):
+alpha = Image.new("L", (WIDTH, HEIGHT))
+def render_frame(radian, time_image):
+    global alpha
     ray_image = second_hand_img(radian)
+    time_image_copy = time_image.copy()
 
-    alpha = ray_image.convert("L")
-    # Create a list of non-black points and sort them by distance from the center
-    non_black_points = []
-    center_x, center_y = WIDTH // 2, HEIGHT // 2
-    for y in range(HEIGHT):
-        for x in range(WIDTH):
-            if alpha.getpixel((x, y)) != 0:
-                non_black_points.append((x, y))
+    original_alpha = time_image.getchannel("A")
+    new_alpha = ImageChops.multiply(ray_image, original_alpha)
+    alpha = Image.eval(alpha, lambda x: int(x * 0.99))
+    alpha = ImageChops.screen(alpha, new_alpha)
 
-    # Sort the non-black points by distance from the center
-    non_black_points.sort(key=lambda point: 
-        math.sqrt((point[0] - center_x) ** 2 + (point[1] - center_y) ** 2))
+    # Apply the new alpha to the copy of time_image
+    time_image_copy.putalpha(alpha)
 
-    for p in non_black_points:
-        value = alpha.getpixel(p)
-        if p in time_pix:
-            time_pix[p] = min(255, time_pix[p] + value)
+    background = Image.new("RGBA", ray_image.size)
+    background.paste(ray_image)
 
-    time_image = Image.new("RGBA", (WIDTH, HEIGHT), color="black")
-    time_draw = ImageDraw.Draw(time_image)
-    for p in time_pix:
-        v = round(time_pix[p])
-        time_pix[p] = max(0, time_pix[p] - 0.5)
-        # print(v)
-        time_draw.point(p, fill=(0, v, v, 255)) # time_pix[p]))
-
-    masked_ray = Image.new("RGBA", ray_image.size)
-    masked_ray.paste(ray_image)
-    masked_ray.putalpha(alpha)
-
-    img = Image.alpha_composite(time_image, masked_ray)
-    # img = ray_image
+    img = Image.alpha_composite(background, time_image_copy)
     draw = ImageDraw.Draw(img)
     for x in range(32, 33):
         for y in range(11, 13):
@@ -129,4 +106,23 @@ def render_frame(radian, time_pix):
 
 def datetime_to_radian(t):
     seconds_total = t.second + t.microsecond / 1e6
-    return (seconds_total / 60) * 2 * math.pi
+    return (seconds_total / 10) * 2 * math.pi
+
+    # alpha = ray_image.convert("L")
+    # # Create a list of non-black points and sort them by distance from the center
+    # non_black_points = []
+    # center_x, center_y = WIDTH // 2, HEIGHT // 2
+    # for y in range(HEIGHT):
+    #     for x in range(WIDTH):
+    #         if alpha.getpixel((x, y)) != 0:
+    #             non_black_points.append((x, y))
+
+    # # Sort the non-black points by distance from the center
+    # non_black_points.sort(key=lambda point: 
+    #     math.sqrt((point[0] - center_x) ** 2 + (point[1] - center_y) ** 2))
+    # for p in non_black_points:
+    #     value = alpha.getpixel(p)
+    #     if p in time_pix:
+    #         # time_pix[p] = min(255, time_pix[p] + value)
+    #         pass
+
