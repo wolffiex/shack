@@ -96,6 +96,44 @@ def create_oversample_alpha_mask():
         )
     return mask
 
+def transform_ray(ray_image, time_image):
+    ray_pixels = ray_image.load()
+    time_pixels = time_image.load()
+    width, height = ray_image.size
+
+    # Get the list of non-opaque pixel coordinates
+    non_opaque_pixels = [
+        (x, y)
+        for x in range(width)
+        for y in range(height)
+        if ray_pixels[x, y] != 0
+    ]
+
+    # Calculate the distance from the origin for each non-opaque pixel
+    distances = [
+        math.sqrt((x - width // 2) ** 2 + (y - height // 2) ** 2)
+        for x, y in non_opaque_pixels
+    ]
+
+    # Sort the non-opaque pixels based on their distances from the origin
+    sorted_pixels = [
+        pixel for _, pixel in sorted(zip(distances, non_opaque_pixels))
+    ]
+
+    # Create a new ray image
+    new_ray_image = Image.new("L", ray_image.size, color=0)
+    # Set the alpha value for each non-opaque pixel
+    step = 0
+    for (x, y) in sorted_pixels:
+        if time_pixels[x, y][3] != 0:
+            step += ray_pixels[x, y] * 0.2
+
+        c = max(0, ray_pixels[x, y] - int(step))  # Accumulate the step down
+        new_ray_image.putpixel((x, y), c)
+
+    return new_ray_image
+
+
 def render_frame(radian, time_image):
     global alpha
     ray_image = second_hand_img(radian)
@@ -120,10 +158,12 @@ def render_frame(radian, time_image):
     # Apply the updated alpha to the time image copy
     time_image_copy.putalpha(alpha)
 
+    ray_image = transform_ray(ray_image, time_image)
+
     # Create a new blank background
     background = Image.new("RGBA", ray_image.size)
 
-    # Paste the ray_image (second hand) onto the background
+    # Paste the transformed ray image onto the background
     background.paste(ray_image)
 
     # Composite the background (with second hand) and the time image
