@@ -81,9 +81,6 @@ def second_hand_img(radian) -> Image.Image:
     return image
 
 
-alpha = Image.new("L", (WIDTH, HEIGHT))
-
-
 def create_oversample_alpha_mask():
     """Create a mask that is opaque in the center and transparent at the edges."""
     mask = Image.new("L", (WIDTH, HEIGHT), color=255)  # Start with fully opaque
@@ -142,26 +139,27 @@ def transform_ray(ray_image, time_image):
     return new_ray_image
 
 
+alpha = Image.new("L", (WIDTH, HEIGHT))
+
+
 def render_frame(radian, time_image, bg_image):
     global alpha
     ray_image = second_hand_img(radian)
     time_image_copy = time_image.copy()
 
     # Get the original alpha (transparency) of the time image (the time digits)
-    original_alpha = time_image.getchannel("A")
-
-    # Apply the radial oversampling mask to the alpha channel of the numbers
-    oversample_mask = create_oversample_alpha_mask()
-    enhanced_alpha = ImageChops.multiply(original_alpha, oversample_mask)
-
-    # Multiply ray_image with the enhanced alpha channel
-    new_alpha = ImageChops.multiply(ray_image, enhanced_alpha)
-
-    # Decay the alpha over time to create the fading effect
-    alpha = Image.eval(alpha, lambda x: int(x * 0.99))
-
-    # Screen the new alpha with the decayed alpha
-    alpha = ImageChops.screen(alpha, new_alpha)
+    # alpha = Image.eval(alpha, lambda x: int(x * 0.99))
+    digits_alpha = time_image.getchannel("A")
+    for x in range(WIDTH):
+        for y in range(HEIGHT):
+            pos = x, y
+            ray_a = ray_image.getpixel(pos)
+            time_a = alpha.getpixel(pos)
+            new_time_a = time_a * 0.99
+            if ray_a and digits_alpha.getpixel(pos):
+                new_time_a = min(255, time_a + ray_a)
+                # print(time_a, ray_a, new_color)
+            alpha.putpixel(pos, int(new_time_a))
 
     # Apply the updated alpha to the time image copy
     time_image_copy.putalpha(alpha)
@@ -169,9 +167,11 @@ def render_frame(radian, time_image, bg_image):
     ray_image = transform_ray(ray_image, time_image)
 
     # Create a new blank background
-    background = Image.new("RGBA", ray_image.size, color=(0,0,0,0))
+    background = Image.new("RGBA", ray_image.size, color=(0, 0, 0, 0))
     # Use the ray image as a mask for the bg_image
-    masked_bg_image = Image.composite(bg_image, Image.new("RGB", bg_image.size, color=(0,0,0)), ray_image)
+    masked_bg_image = Image.composite(
+        bg_image, Image.new("RGB", bg_image.size, color=(0, 0, 0)), ray_image
+    )
 
     # Paste the masked bg_image onto the background
     background.paste(masked_bg_image)
@@ -202,16 +202,21 @@ class Background:
         self.center_x = WIDTH // 2
         self.center_y = HEIGHT // 2
         self.max_previous_colors = max_previous_colors
-        self.center_color = (155, 155, 155)
+        self.center_color = (155, 155, 175)
         self.edge_color = (175, 135, 155)
         self.frame_num = 0
         self.velocity = [0, 0, 0]
         self.momentum = 0.9
 
     def shift_colors(self):
-        mid_color = 255.0 / 2
+        floor = 125.0
+        ceiling = 255.0
+        mid_range = (ceiling - floor) / 2
         # map color to range -1, 1
-        mapped_values = [(channel / mid_color) - 1 for channel in self.center_color]
+        mapped_values = [
+            2 * (channel - (floor + mid_range)) / mid_range
+            for channel in self.center_color
+        ]
 
         acceleration = [
             random.uniform(-1 + value, 1 - value) for value in mapped_values
@@ -226,6 +231,7 @@ class Background:
                 max(0, min(int(x + v), 255)) for x, v in zip(color, self.velocity)
             )
 
+        # print(self.center_color, mapped_values, self.velocity)
         self.center_color = apply_velocity(self.center_color)
         self.edge_color = apply_velocity(self.edge_color)
 
