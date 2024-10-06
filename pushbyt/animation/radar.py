@@ -21,8 +21,7 @@ def radar(start_time: datetime):
     time_image.paste(hours_img, box=(0, 0))
     time_image.paste(mins_img, box=(32, 0))
     while True:
-        # yield render_frame(datetime_to_radian(t), time_image)
-        yield bg.render_frame()
+        yield render_frame(datetime_to_radian(t), time_image, bg.render_frame())
 
         t += FRAME_TIME
 
@@ -143,7 +142,7 @@ def transform_ray(ray_image, time_image):
     return new_ray_image
 
 
-def render_frame(radian, time_image):
+def render_frame(radian, time_image, bg_image):
     global alpha
     ray_image = second_hand_img(radian)
     time_image_copy = time_image.copy()
@@ -170,10 +169,12 @@ def render_frame(radian, time_image):
     ray_image = transform_ray(ray_image, time_image)
 
     # Create a new blank background
-    background = Image.new("RGBA", ray_image.size)
+    background = Image.new("RGBA", ray_image.size, color=(0,0,0,0))
+    # Use the ray image as a mask for the bg_image
+    masked_bg_image = Image.composite(bg_image, Image.new("RGB", bg_image.size, color=(0,0,0)), ray_image)
 
-    # Paste the transformed ray image onto the background
-    background.paste(ray_image)
+    # Paste the masked bg_image onto the background
+    background.paste(masked_bg_image)
 
     # Composite the background (with second hand) and the time image
     img = Image.alpha_composite(background, time_image_copy)
@@ -226,7 +227,6 @@ class Background:
             )
 
         self.center_color = apply_velocity(self.center_color)
-        print(self.center_color, acceleration, mapped_values)
         self.edge_color = apply_velocity(self.edge_color)
 
     def render_frame(self):
