@@ -78,51 +78,69 @@ def second_hand_img(radian) -> Image.Image:
     return image
 
 alpha = Image.new("L", (WIDTH, HEIGHT))
+
+def create_oversample_alpha_mask():
+    """Create a mask that is opaque in the center and transparent at the edges."""
+    mask = Image.new("L", (WIDTH, HEIGHT), color=255)  # Start with fully opaque
+    draw = ImageDraw.Draw(mask)
+
+    center_x, center_y = WIDTH // 2, HEIGHT // 2
+    max_radius = min(center_x, center_y)
+
+    for radius in range(max_radius):
+        alpha_value = int(255 * (1 - (radius / max_radius)))  # Opaque in the center, fades to transparent
+        draw.ellipse(
+            (center_x - radius, center_y - radius, center_x + radius, center_y + radius),
+            outline=alpha_value,
+            fill=None
+        )
+    return mask
+
 def render_frame(radian, time_image):
     global alpha
     ray_image = second_hand_img(radian)
     time_image_copy = time_image.copy()
 
+    # Get the original alpha (transparency) of the time image (the time digits)
     original_alpha = time_image.getchannel("A")
-    new_alpha = ImageChops.multiply(ray_image, original_alpha)
+    
+    # Apply the radial oversampling mask to the alpha channel of the numbers
+    oversample_mask = create_oversample_alpha_mask()
+    enhanced_alpha = ImageChops.multiply(original_alpha, oversample_mask)
+
+    # Multiply ray_image with the enhanced alpha channel
+    new_alpha = ImageChops.multiply(ray_image, enhanced_alpha)
+
+    # Decay the alpha over time to create the fading effect
     alpha = Image.eval(alpha, lambda x: int(x * 0.99))
+
+    # Screen the new alpha with the decayed alpha
     alpha = ImageChops.screen(alpha, new_alpha)
 
-    # Apply the new alpha to the copy of time_image
+    # Apply the updated alpha to the time image copy
     time_image_copy.putalpha(alpha)
 
+    # Create a new blank background
     background = Image.new("RGBA", ray_image.size)
+
+    # Paste the ray_image (second hand) onto the background
     background.paste(ray_image)
 
+    # Composite the background (with second hand) and the time image
     img = Image.alpha_composite(background, time_image_copy)
+
+    # Optional extra drawing for tick marks, etc.
     draw = ImageDraw.Draw(img)
     for x in range(32, 33):
         for y in range(11, 13):
             draw.point((x, y), fill="white")
         for y in range(19, 21):
             draw.point((x, y), fill="white")
+
     return img.convert("RGB")
+
 
 
 def datetime_to_radian(t):
     seconds_total = t.second + t.microsecond / 1e6
     return (seconds_total / 10) * 2 * math.pi
-
-    # alpha = ray_image.convert("L")
-    # # Create a list of non-black points and sort them by distance from the center
-    # non_black_points = []
-    # center_x, center_y = WIDTH // 2, HEIGHT // 2
-    # for y in range(HEIGHT):
-    #     for x in range(WIDTH):
-    #         if alpha.getpixel((x, y)) != 0:
-    #             non_black_points.append((x, y))
-
-    # # Sort the non-black points by distance from the center
-    # non_black_points.sort(key=lambda point: 
-    #     math.sqrt((point[0] - center_x) ** 2 + (point[1] - center_y) ** 2))
-    # for p in non_black_points:
-    #     value = alpha.getpixel(p)
-    #     if p in time_pix:
-    #         # time_pix[p] = min(255, time_pix[p] + value)
-    #         pass
-
