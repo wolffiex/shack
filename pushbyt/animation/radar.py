@@ -1,7 +1,9 @@
+import math
+import random
+
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 from datetime import datetime
 from pushbyt.animation import render, FRAME_TIME
-import math
 
 
 WIDTH, HEIGHT = 64, 32
@@ -10,6 +12,7 @@ SCALED_WIDTH, SCALED_HEIGHT = SCALE_FACTOR * WIDTH, SCALE_FACTOR * HEIGHT
 
 
 def radar(start_time: datetime):
+    bg = Background()
     t = start_time
     font = ImageFont.truetype("./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
     hours_img = get_time_img(font, "99")
@@ -18,7 +21,8 @@ def radar(start_time: datetime):
     time_image.paste(hours_img, box=(0, 0))
     time_image.paste(mins_img, box=(32, 0))
     while True:
-        yield render_frame(datetime_to_radian(t), time_image)
+        # yield render_frame(datetime_to_radian(t), time_image)
+        yield bg.render_frame()
 
         t += FRAME_TIME
 
@@ -77,7 +81,9 @@ def second_hand_img(radian) -> Image.Image:
 
     return image
 
+
 alpha = Image.new("L", (WIDTH, HEIGHT))
+
 
 def create_oversample_alpha_mask():
     """Create a mask that is opaque in the center and transparent at the edges."""
@@ -88,13 +94,21 @@ def create_oversample_alpha_mask():
     max_radius = min(center_x, center_y)
 
     for radius in range(max_radius):
-        alpha_value = int(255 * (1 - (radius / max_radius)))  # Opaque in the center, fades to transparent
+        alpha_value = int(
+            255 * (1 - (radius / max_radius))
+        )  # Opaque in the center, fades to transparent
         draw.ellipse(
-            (center_x - radius, center_y - radius, center_x + radius, center_y + radius),
+            (
+                center_x - radius,
+                center_y - radius,
+                center_x + radius,
+                center_y + radius,
+            ),
             outline=alpha_value,
-            fill=None
+            fill=None,
         )
     return mask
+
 
 def transform_ray(ray_image, time_image):
     ray_pixels = ray_image.load()
@@ -103,10 +117,7 @@ def transform_ray(ray_image, time_image):
 
     # Get the list of non-opaque pixel coordinates
     non_opaque_pixels = [
-        (x, y)
-        for x in range(width)
-        for y in range(height)
-        if ray_pixels[x, y] != 0
+        (x, y) for x in range(width) for y in range(height) if ray_pixels[x, y] != 0
     ]
 
     # Calculate the distance from the origin for each non-opaque pixel
@@ -116,15 +127,13 @@ def transform_ray(ray_image, time_image):
     ]
 
     # Sort the non-opaque pixels based on their distances from the origin
-    sorted_pixels = [
-        pixel for _, pixel in sorted(zip(distances, non_opaque_pixels))
-    ]
+    sorted_pixels = [pixel for _, pixel in sorted(zip(distances, non_opaque_pixels))]
 
     # Create a new ray image
     new_ray_image = Image.new("L", ray_image.size, color=0)
     # Set the alpha value for each non-opaque pixel
     step = 0
-    for (x, y) in sorted_pixels:
+    for x, y in sorted_pixels:
         if time_pixels[x, y][3] != 0:
             step += ray_pixels[x, y] * 0.2
 
@@ -141,7 +150,7 @@ def render_frame(radian, time_image):
 
     # Get the original alpha (transparency) of the time image (the time digits)
     original_alpha = time_image.getchannel("A")
-    
+
     # Apply the radial oversampling mask to the alpha channel of the numbers
     oversample_mask = create_oversample_alpha_mask()
     enhanced_alpha = ImageChops.multiply(original_alpha, oversample_mask)
@@ -180,7 +189,67 @@ def render_frame(radian, time_image):
     return img.convert("RGB")
 
 
-
 def datetime_to_radian(t):
     seconds_total = t.second + t.microsecond / 1e6
     return (seconds_total / 10) * 2 * math.pi
+
+
+class Background:
+    def __init__(self, max_previous_colors=10):
+        self.width = WIDTH
+        self.height = HEIGHT
+        self.center_x = WIDTH // 2
+        self.center_y = HEIGHT // 2
+        self.max_previous_colors = max_previous_colors
+        self.center_color = (155, 155, 155)
+        self.edge_color = (175, 135, 155)
+        self.frame_num = 0
+        self.velocity = [0, 0, 0]
+        self.momentum = 0.9
+
+    def shift_colors(self):
+        mid_color = 255.0 / 2
+        # map color to range -1, 1
+        mapped_values = [(channel / mid_color) - 1 for channel in self.center_color]
+
+        acceleration = [
+            random.uniform(-1 + value, 1 - value) for value in mapped_values
+        ]
+
+        self.velocity = [
+            v * self.momentum + a for v, a in zip(self.velocity, acceleration)
+        ]
+
+        def apply_velocity(color):
+            return tuple(
+                max(0, min(int(x + v), 255)) for x, v in zip(color, self.velocity)
+            )
+
+        self.center_color = apply_velocity(self.center_color)
+        print(self.center_color, acceleration, mapped_values)
+        self.edge_color = apply_velocity(self.edge_color)
+
+    def render_frame(self):
+        self.shift_colors()
+        # Create a new PIL image
+        image = Image.new("RGB", (self.width, self.height))
+        pixels = image.load()
+        max_distance = math.sqrt(self.center_x**2 + self.center_y**2)
+
+        for y in range(self.height):
+            for x in range(self.width):
+                distance = math.sqrt(
+                    (x - self.center_x) ** 2 + (y - self.center_y) ** 2
+                )
+                normalized_distance = distance / max_distance
+
+                # Interpolate between center color and edge color based on the normalized distance
+                color = tuple(
+                    int(c + (e - c) * normalized_distance)
+                    for c, e in zip(self.center_color, self.edge_color)
+                )
+
+                # Set the pixel color in the PIL image
+                pixels[x, y] = color
+
+        return image
