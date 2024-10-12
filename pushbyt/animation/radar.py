@@ -89,18 +89,17 @@ def second_hand_img(radian) -> Image.Image:
 def transform_ray(ray_image, time_image):
     ray_pixels = ray_image.load()
     time_pixels = time_image.load()
-    width, height = ray_image.size
 
     # Get the list of non-opaque pixel coordinates
     non_opaque_pixels = [
-        (x, y) for x in range(width)
-        for y in range(height)
+        (x, y) for x in range(WIDTH)
+        for y in range(HEIGHT)
         if ray_pixels[x, y] != 0
     ]
 
     # Calculate the distance from the origin for each non-opaque pixel
     distances = [
-        math.sqrt((x - width // 2) ** 2 + (y - height // 2) ** 2)
+        math.sqrt((x - WIDTH // 2) ** 2 + (y - HEIGHT // 2) ** 2)
         for x, y in non_opaque_pixels
     ]
 
@@ -114,7 +113,7 @@ def transform_ray(ray_image, time_image):
     step = 0
     for x, y in sorted_pixels:
         if time_pixels[x, y] != 0:
-            step += ray_pixels[x, y] * 0.2
+            step += ray_pixels[x, y] * 0.1
 
         c = max(0, ray_pixels[x, y] - int(step))  # Accumulate the step down
         new_ray_image.putpixel((x, y), c)
@@ -141,8 +140,8 @@ def render_frame(time_pixels, radian, time_image, background):
             alpha.putpixel(pos, int(new_time_a))
 
     img = time_pixels.zap_with_ray(time_image, ray_image, background)
-    # ray_image = transform_ray(ray_image, time_image)
-    img.paste(background, mask=ray_image)
+    ray_mask = transform_ray(ray_image, time_image)
+    img.paste(background, mask=ray_mask)
 
     # Optional extra drawing for tick marks, etc.
     # draw = ImageDraw.Draw(img)
@@ -165,9 +164,9 @@ class TimePixels:
     class Pixel:
         alpha = 0.0
         velocity = 0.0
-        color = (0, 0, 0)
+        color: Tuple[int, int, int] = (0, 0, 0)
 
-        def step(self):
+        def step(self) -> Tuple[int, int, int]:
             alpha = max(0.0, self.alpha + self.velocity)
             if alpha > 1.0:
                 alpha = 1.0
