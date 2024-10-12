@@ -14,14 +14,16 @@ SCALED_WIDTH, SCALED_HEIGHT = SCALE_FACTOR * WIDTH, SCALE_FACTOR * HEIGHT
 def radar(start_time: datetime):
     bg = Background()
     t = start_time
-    font = ImageFont.truetype("./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
+    font = ImageFont.truetype(
+        "./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
     hours_img = get_time_img(font, "99")
     mins_img = get_time_img(font, "99")
     time_image = Image.new("RGBA", (WIDTH, HEIGHT), color="black")
     time_image.paste(hours_img, box=(0, 0))
     time_image.paste(mins_img, box=(32, 0))
     while True:
-        yield render_frame(datetime_to_radian(t), time_image, bg.render_frame())
+        yield render_frame(
+                datetime_to_radian(t), time_image, bg.render_frame())
 
         t += FRAME_TIME
 
@@ -74,36 +76,12 @@ def second_hand_img(radian) -> Image.Image:
 
     draw = ImageDraw.Draw(image)
 
-    draw.line((center_x, center_y, end_x, end_y), fill="white", width=SCALE_FACTOR)
+    draw.line((center_x, center_y, end_x, end_y),
+              fill="white", width=SCALE_FACTOR)
 
     image = image.resize((WIDTH, HEIGHT), resample=Image.LANCZOS)
 
     return image
-
-
-def create_oversample_alpha_mask():
-    """Create a mask that is opaque in the center and transparent at the edges."""
-    mask = Image.new("L", (WIDTH, HEIGHT), color=255)  # Start with fully opaque
-    draw = ImageDraw.Draw(mask)
-
-    center_x, center_y = WIDTH // 2, HEIGHT // 2
-    max_radius = min(center_x, center_y)
-
-    for radius in range(max_radius):
-        alpha_value = int(
-            255 * (1 - (radius / max_radius))
-        )  # Opaque in the center, fades to transparent
-        draw.ellipse(
-            (
-                center_x - radius,
-                center_y - radius,
-                center_x + radius,
-                center_y + radius,
-            ),
-            outline=alpha_value,
-            fill=None,
-        )
-    return mask
 
 
 def transform_ray(ray_image, time_image):
@@ -123,7 +101,8 @@ def transform_ray(ray_image, time_image):
     ]
 
     # Sort the non-opaque pixels based on their distances from the origin
-    sorted_pixels = [pixel for _, pixel in sorted(zip(distances, non_opaque_pixels))]
+    sorted_pixels = [pixel for _, pixel in sorted(
+        zip(distances, non_opaque_pixels))]
 
     # Create a new ray image
     new_ray_image = Image.new("L", ray_image.size, color=0)
@@ -196,42 +175,36 @@ def datetime_to_radian(t):
 
 
 class Background:
-    def __init__(self, max_previous_colors=10):
+    def __init__(self):
         self.width = WIDTH
         self.height = HEIGHT
         self.center_x = WIDTH // 2
         self.center_y = HEIGHT // 2
-        self.max_previous_colors = max_previous_colors
         self.center_color = (155, 155, 175)
         self.edge_color = (175, 135, 155)
-        self.frame_num = 0
-        self.velocity = [0, 0, 0]
-        self.momentum = 0.9
+        self.velocity = [0.5, -3.0, 4.0]
+        drop_color = random.randint(0, 2)
+        self.floor_colors = [0.0 if n == drop_color else 125.0
+                             for n in range(3)]
 
     def shift_colors(self):
-        floor = 125.0
-        ceiling = 255.0
-        mid_range = (ceiling - floor) / 2
-        # map color to range -1, 1
-        mapped_values = [
-            2 * (channel - (floor + mid_range)) / mid_range
-            for channel in self.center_color
-        ]
-
-        acceleration = [
-            random.uniform(-1 + value, 1 - value) for value in mapped_values
-        ]
-
-        self.velocity = [
-            v * self.momentum + a for v, a in zip(self.velocity, acceleration)
-        ]
+        for i in range(3):
+            c = self.center_color[i]
+            floor = self.floor_colors[i]
+            v = self.velocity[i]
+            r = 5 * random.random()
+            if c <= floor and v < 0:
+                self.velocity[i] = r
+            elif c >= 255.0 and v > 0:
+                self.velocity[i] = -r
 
         def apply_velocity(color):
             return tuple(
-                max(0, min(int(x + v), 255)) for x, v in zip(color, self.velocity)
+                max(floor, min(c + v, 255.0))
+                for floor, c, v in zip(self.floor_colors, color, self.velocity)
             )
 
-        # print(self.center_color, mapped_values, self.velocity)
+        # print(self.center_color, self.velocity)
         self.center_color = apply_velocity(self.center_color)
         self.edge_color = apply_velocity(self.edge_color)
 
