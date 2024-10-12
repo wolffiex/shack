@@ -133,10 +133,12 @@ def get_segment_start(start_time, *sources):
         else start_time
     )
 
-SOURCES = [Animation.Source.RAYS, Animation.Source.RADAR]
+
+CLOCK_SOURCES = [Animation.Source.RAYS, Animation.Source.RADAR]
+
 
 def generate_clock(start_time: datetime):
-    segment_start = get_segment_start(start_time, *SOURCES)
+    segment_start = get_segment_start(start_time, *CLOCK_SOURCES)
     if not segment_start:
         return "Already have clock"
 
@@ -144,33 +146,33 @@ def generate_clock(start_time: datetime):
     end_time = t + SEGMENT_TIME
 
     # Randomly choose between rays or radar
-    source = random.choice(SOURCES)
-    is_radar = source == Animation.Source.RADAR
+    source = random.choice(CLOCK_SOURCES)
 
     # Choose the appropriate animation generator based on the selected source
-    frames = clock_radar() if is_radar else clock_rays()
+    frames = clock_radar() if source == Animation.Source.RADAR else clock_rays()
 
     next(frames)
     animations = []
     while t < end_time:
         anim_frames = []
-        anim_start_time = t;
+        anim_start_time = t
         for _ in range(int(FRAME_COUNT)):
             anim_frames.append(frames.send(t))
             t += FRAME_TIME
         file_path = (
-            Path("render") / ("ray_" + anim_start_time.strftime("%j-%H-%M-%S"))
+            Path("render") /
+            (f"{source}_" + anim_start_time.strftime("%j-%H-%M-%S"))
         ).with_suffix(".webp")
         render(anim_frames, file_path)
         animations.append(
-            Animation( 
+            Animation(
                 file_path=file_path,
                 start_time=anim_start_time,
-                source=Animation.Source.RAYS,
+                source=source,
             )
         )
     new_anims = Animation.objects.bulk_create(animations)
-    return f"Created {len(new_anims)} {'radar' if is_radar else 'rays'} starting at " + segment_start.strftime(
+    return f"Created {len(new_anims)} {source} starting at " + segment_start.strftime(
         " %-I:%M:%S"
     )
 
