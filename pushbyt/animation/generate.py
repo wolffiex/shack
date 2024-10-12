@@ -144,16 +144,17 @@ def generate_clock(start_time: datetime):
     end_time = t + SEGMENT_TIME
 
     # Randomly choose between rays or radar
-    source = Animation.Source.RADAR # random.choice(SOURCES)
+    source = random.choice(SOURCES)
+    is_radar = source == Animation.Source.RADAR
 
     # Choose the appropriate animation generator based on the selected source
-    frames = clock_rays() if source == Animation.Source.RAYS else clock_radar()
+    frames = clock_radar() if is_radar else clock_rays()
 
     next(frames)
     animations = []
     while t < end_time:
         anim_frames = []
-        anim_start_time = t
+        anim_start_time = t;
         for _ in range(int(FRAME_COUNT)):
             anim_frames.append(frames.send(t))
             t += FRAME_TIME
@@ -162,14 +163,14 @@ def generate_clock(start_time: datetime):
         ).with_suffix(".webp")
         render(anim_frames, file_path)
         animations.append(
-            Animation(
+            Animation( 
                 file_path=file_path,
                 start_time=anim_start_time,
                 source=Animation.Source.RAYS,
             )
         )
     new_anims = Animation.objects.bulk_create(animations)
-    return f"Created {len(new_anims)} rays starting at " + segment_start.strftime(
+    return f"Created {len(new_anims)} {'radar' if is_radar else 'rays'} starting at " + segment_start.strftime(
         " %-I:%M:%S"
     )
 

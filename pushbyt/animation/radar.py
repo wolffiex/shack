@@ -23,7 +23,7 @@ def clock_radar() -> Generator[Image.Image, datetime, None]:
     while True:
         t = yield next_frame
         time_img = compose_time_img(font, t)
-        yield render_frame(time_pixels,
+        next_frame = render_frame(time_pixels,
                datetime_to_radian(t), time_img, bg.render_frame())
 
 
