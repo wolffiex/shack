@@ -26,8 +26,8 @@ def radar(start_time: datetime):
     time_image.paste(mins_img, box=(32, 0))
     time_pixels = TimePixels()
     while True:
-        yield render_frame( time_pixels,
-                datetime_to_radian(t), time_image.copy(), bg.render_frame())
+        yield render_frame(time_pixels,
+                           datetime_to_radian(t), time_image.copy(), bg.render_frame())
 
         t += FRAME_TIME
 
@@ -140,13 +140,9 @@ def render_frame(time_pixels, radian, time_image, background):
                 # print(time_a, ray_a, new_color)
             alpha.putpixel(pos, int(new_time_a))
 
-    time_screen = time_pixels.zap_with_ray(time_image, ray_image)
+    img = time_pixels.zap_with_ray(time_image, ray_image, background)
     # ray_image = transform_ray(ray_image, time_image)
-    mask_image = ImageChops.screen(ray_image, time_screen)
-    img = Image.new("RGB", background.size, color="black")
-    img.paste(background, mask=mask_image)
-
-    
+    img.paste(background, mask=ray_image)
 
     # Optional extra drawing for tick marks, etc.
     # draw = ImageDraw.Draw(img)
@@ -169,30 +165,34 @@ class TimePixels:
     class Pixel:
         alpha = 0.0
         velocity = 0.0
+        color = (0, 0, 0)
 
         def step(self):
             alpha = max(0.0, self.alpha + self.velocity)
-            if alpha > 255.0:
-                alpha = 255.0
-                self.velocity = -5
+            if alpha > 1.0:
+                alpha = 1.0
+                self.velocity = -0.01
             self.alpha = alpha
-            return self.alpha
+            return tuple(int(c * self.alpha) for c in self.color)
 
     def __init__(self):
         d = defaultdict(TimePixels.Pixel)
         self.pixels: dict[Tuple[int, int], TimePixels.Pixel] = d
 
-    def zap_with_ray(self, time_image, ray_image):
+    def zap_with_ray(self, time_image, ray_image, bg_image):
         ray_pixels = ray_image.load()
         time_image_pixels = time_image.load()
+        bg_pixels = bg_image.load()
         for x in range(WIDTH):
             for y in range(HEIGHT):
                 a = ray_pixels[x, y]
                 if a > 20 and time_image_pixels[x, y]:
-                    self.pixels[x, y].velocity = 100
-        img = Image.new("L", (WIDTH, HEIGHT), color=0)
+                    pxl = self.pixels[x, y]
+                    pxl.velocity = 0.18
+                    pxl.color = bg_pixels[x, y]
+        img = Image.new("RGB", (WIDTH, HEIGHT), color="black")
         for point, px in self.pixels.items():
-            img.putpixel(point, int(px.step()))
+            img.putpixel(point, px.step())
         return img
 
 
