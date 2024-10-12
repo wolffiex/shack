@@ -28,7 +28,8 @@ def clock_radar() -> Generator[Image.Image, datetime, None]:
 
 
 def compose_time_img(font, t: datetime) -> Image.Image:
-    hours_img = get_time_img(font, t.strftime("%I"))
+    hours_text = t.strftime("%l").rjust(2)
+    hours_img = get_time_img(font, hours_text)
     mins_img = get_time_img(font, t.strftime("%M"))
     time_image = Image.new("L", (WIDTH, HEIGHT), color="black")
     time_image.paste(hours_img, box=(0, 0))
