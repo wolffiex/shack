@@ -60,16 +60,16 @@ def get_animation_list(now):
 
 def summarize_anims(anims, now):
     last_timer = None
-    last_ray = None
+    last_clock = None
     for anim in [a for a in anims if a.served_at]:
         if is_timer(anim):
             last_timer = anim
-        elif is_ray(anim):
-            last_ray = anim
+        elif is_clock(anim):
+            last_clock = anim
     return {
         "now": now,
         "last_timer": last_timer,
-        "last_ray": last_ray,
+        "last_clock": last_clock,
     }
 
 
@@ -77,8 +77,8 @@ def is_timer(anim):
     return anim.source == Animation.Source.TIMER
 
 
-def is_ray(anim):
-    return anim.source == Animation.Source.RAYS
+def is_clock(anim):
+    return anim.source in [Animation.Source.RAYS, Animation.Source.RADAR]
 
 
 def is_served(animation):
@@ -119,7 +119,7 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
     if not summary["last_timer"]:
         predicates.append(is_timer)
 
-    if not summary["last_ray"]:
-        predicates.append(is_ray)
+    if not summary["last_clock"]:
+        predicates.append(is_clock)
 
     return next(filter(lambda r: r != 0, map(compare_by_predicate, predicates)), 0)

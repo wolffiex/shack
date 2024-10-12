@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 import math
 import random
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Generator
 
@@ -86,14 +87,15 @@ class Ray:
         return Point(x, y)
 
 
-def clock_rays() -> Generator[Image.Image, str, None]:
+def clock_rays() -> Generator[Image.Image, datetime, None]:
     rays = []
     black_image = Image.new("RGB", (WIDTH, HEIGHT), color="black")
     time_image = black_image.copy()
     time_str = None
     next_frame = black_image
     while True:
-        time_str = yield next_frame
+        t = yield next_frame
+        time_str = t.strftime("%-I:%M")
         all_time_pixels = get_time_pixels(time_str)
         for _ in range(random.randint(1, 4)):
             rays.append(Ray.new())

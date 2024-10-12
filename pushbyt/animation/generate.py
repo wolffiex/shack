@@ -1,7 +1,9 @@
 import os
+import random
 from datetime import datetime, timedelta
 from itertools import islice
 from pushbyt.animation.rays2 import clock_rays
+from pushbyt.animation.radar import clock_radar
 from pushbyt.animation.song import song_info
 from pushbyt.animation.timer import timer as timer_frames
 from pathlib import Path
@@ -31,7 +33,7 @@ def generate():
     results = [
         check_spotify(),
         check_timer(aligned_time),
-        generate_rays(aligned_time),
+        generate_clock(aligned_time),
     ]
     return "\n".join(results)
 
@@ -118,11 +120,11 @@ def generate_timer(start_time, timer):
     )
 
 
-def get_segment_start(start_time, source):
+def get_segment_start(start_time, *sources):
     # For now, assume all animations are continuous.
     # This is not a hard guarantee
     max_start_time = Animation.objects.filter(
-        start_time__gte=start_time, source=source
+        start_time__gte=start_time, source__in=sources
     ).aggregate(max_start_time=Max("start_time"))["max_start_time"]
 
     return (
@@ -131,23 +133,29 @@ def get_segment_start(start_time, source):
         else start_time
     )
 
+SOURCES = [Animation.Source.RAYS, Animation.Source.RADAR]
 
-def generate_rays(start_time: datetime):
-    segment_start = get_segment_start(start_time, Animation.Source.RAYS)
+def generate_clock(start_time: datetime):
+    segment_start = get_segment_start(start_time, *SOURCES)
     if not segment_start:
-        return "Already have rays"
+        return "Already have clock"
 
     t = segment_start
     end_time = t + SEGMENT_TIME
-    frames = clock_rays()
+
+    # Randomly choose between rays or radar
+    source = Animation.Source.RADAR # random.choice(SOURCES)
+
+    # Choose the appropriate animation generator based on the selected source
+    frames = clock_rays() if source == Animation.Source.RAYS else clock_radar()
+
     next(frames)
     animations = []
     while t < end_time:
         anim_frames = []
         anim_start_time = t
         for _ in range(int(FRAME_COUNT)):
-            time_str = t.strftime("%-I:%M")
-            anim_frames.append(frames.send(time_str))
+            anim_frames.append(frames.send(t))
             t += FRAME_TIME
         file_path = (
             Path("render") / ("ray_" + anim_start_time.strftime("%j-%H-%M-%S"))

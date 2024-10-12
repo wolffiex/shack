@@ -1,17 +1,39 @@
 import math
 import random
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, Generator
 from collections import defaultdict
 
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 from datetime import datetime
-from pushbyt.animation import render, FRAME_TIME
+from pushbyt.animation import FRAME_TIME
 
 
 WIDTH, HEIGHT = 64, 32
 SCALE_FACTOR = 4
 SCALED_WIDTH, SCALED_HEIGHT = SCALE_FACTOR * WIDTH, SCALE_FACTOR * HEIGHT
+
+
+def clock_radar() -> Generator[Image.Image, datetime, None]:
+    bg = Background()
+    font = ImageFont.truetype(
+        "./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
+    time_pixels = TimePixels()
+    next_frame = Image.new("RGB", (WIDTH, HEIGHT), color="black")
+    while True:
+        t = yield next_frame
+        time_img = compose_time_img(font, t)
+        yield render_frame(time_pixels,
+               datetime_to_radian(t), time_img, bg.render_frame())
+
+
+def compose_time_img(font, t: datetime) -> Image.Image:
+    hours_img = get_time_img(font, t.strftime("%I"))
+    mins_img = get_time_img(font, t.strftime("%M"))
+    time_image = Image.new("L", (WIDTH, HEIGHT), color="black")
+    time_image.paste(hours_img, box=(0, 0))
+    time_image.paste(mins_img, box=(32, 0))
+    return time_image
 
 
 def radar(start_time: datetime):
