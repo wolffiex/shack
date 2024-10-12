@@ -1,5 +1,8 @@
 import math
 import random
+from dataclasses import dataclass
+from typing import Tuple
+from collections import defaultdict
 
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 from datetime import datetime
@@ -18,28 +21,27 @@ def radar(start_time: datetime):
         "./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
     hours_img = get_time_img(font, "99")
     mins_img = get_time_img(font, "99")
-    time_image = Image.new("RGBA", (WIDTH, HEIGHT), color="black")
+    time_image = Image.new("L", (WIDTH, HEIGHT), color="black")
     time_image.paste(hours_img, box=(0, 0))
     time_image.paste(mins_img, box=(32, 0))
+    time_pixels = TimePixels()
     while True:
-        yield render_frame(
-                datetime_to_radian(t), time_image, bg.render_frame())
+        yield render_frame( time_pixels,
+                datetime_to_radian(t), time_image.copy(), bg.render_frame())
 
         t += FRAME_TIME
 
 
 def get_time_img(font, text):
-    image = Image.new("RGBA", (32, 32), color=(0, 0, 0, 0))
+    image = Image.new("L", (32, 32), color=0)
     draw = ImageDraw.Draw(image)
     text_position = (0, 0)
-    # text_width, text_height = draw.textsize(text, font=font)
-    # text_position = ((32 - text_width) // 2, (32 - text_height) // 2)
-    draw.text(text_position, text, font=font, fill="red")
+    draw.text(text_position, text, font=font, fill="white")
 
     # Get the list of white pixel coordinates as a generator
     pixels = image.load()
     non_transparent_pixels = [
-        (x, y) for x in range(32) for y in range(32) if pixels[x, y][3] != 0
+        (x, y) for x in range(32) for y in range(32) if pixels[x, y] != 0
     ]
 
     if not non_transparent_pixels:
@@ -59,7 +61,7 @@ def get_time_img(font, text):
     offset_y = 16 - center_y
 
     # Create a new 32x32 image and paste the original image with the offset
-    result = Image.new("RGBA", (32, 32), color=(0, 0, 0, 0))
+    result = Image.new("L", (32, 32), color=0)
     result.paste(image, (offset_x, offset_y))
 
     return result
@@ -91,7 +93,9 @@ def transform_ray(ray_image, time_image):
 
     # Get the list of non-opaque pixel coordinates
     non_opaque_pixels = [
-        (x, y) for x in range(width) for y in range(height) if ray_pixels[x, y] != 0
+        (x, y) for x in range(width)
+        for y in range(height)
+        if ray_pixels[x, y] != 0
     ]
 
     # Calculate the distance from the origin for each non-opaque pixel
@@ -109,7 +113,7 @@ def transform_ray(ray_image, time_image):
     # Set the alpha value for each non-opaque pixel
     step = 0
     for x, y in sorted_pixels:
-        if time_pixels[x, y][3] != 0:
+        if time_pixels[x, y] != 0:
             step += ray_pixels[x, y] * 0.2
 
         c = max(0, ray_pixels[x, y] - int(step))  # Accumulate the step down
@@ -121,57 +125,75 @@ def transform_ray(ray_image, time_image):
 alpha = Image.new("L", (WIDTH, HEIGHT))
 
 
-def render_frame(radian, time_image, bg_image):
+def render_frame(time_pixels, radian, time_image, background):
     global alpha
     ray_image = second_hand_img(radian)
-    time_image_copy = time_image.copy()
 
-    # Get the original alpha (transparency) of the time image (the time digits)
-    # alpha = Image.eval(alpha, lambda x: int(x * 0.99))
-    digits_alpha = time_image.getchannel("A")
     for x in range(WIDTH):
         for y in range(HEIGHT):
             pos = x, y
             ray_a = ray_image.getpixel(pos)
             time_a = alpha.getpixel(pos)
             new_time_a = time_a * 0.99
-            if ray_a and digits_alpha.getpixel(pos):
+            if ray_a and time_image.getpixel(pos):
                 new_time_a = min(255, time_a + ray_a)
                 # print(time_a, ray_a, new_color)
             alpha.putpixel(pos, int(new_time_a))
 
-    # Apply the updated alpha to the time image copy
-    time_image_copy.putalpha(alpha)
+    time_screen = time_pixels.zap_with_ray(time_image, ray_image)
+    # ray_image = transform_ray(ray_image, time_image)
+    mask_image = ImageChops.screen(ray_image, time_screen)
+    img = Image.new("RGB", background.size, color="black")
+    img.paste(background, mask=mask_image)
 
-    ray_image = transform_ray(ray_image, time_image)
-
-    # Create a new blank background
-    background = Image.new("RGBA", ray_image.size, color=(0, 0, 0, 0))
-    # Use the ray image as a mask for the bg_image
-    masked_bg_image = Image.composite(
-        bg_image, Image.new("RGB", bg_image.size, color=(0, 0, 0)), ray_image
-    )
-
-    # Paste the masked bg_image onto the background
-    background.paste(masked_bg_image)
-
-    # Composite the background (with second hand) and the time image
-    img = Image.alpha_composite(background, time_image_copy)
+    
 
     # Optional extra drawing for tick marks, etc.
-    draw = ImageDraw.Draw(img)
-    for x in range(32, 33):
-        for y in range(11, 13):
-            draw.point((x, y), fill="white")
-        for y in range(19, 21):
-            draw.point((x, y), fill="white")
+    # draw = ImageDraw.Draw(img)
+    # for x in range(32, 33):
+    #     for y in range(11, 13):
+    #         draw.point((x, y), fill="white")
+    #     for y in range(19, 21):
+    #         draw.point((x, y), fill="white")
 
-    return img.convert("RGB")
+    return img
 
 
 def datetime_to_radian(t):
     seconds_total = t.second + t.microsecond / 1e6
     return (seconds_total / 10) * 2 * math.pi
+
+
+class TimePixels:
+    @dataclass
+    class Pixel:
+        alpha = 0.0
+        velocity = 0.0
+
+        def step(self):
+            alpha = max(0.0, self.alpha + self.velocity)
+            if alpha > 255.0:
+                alpha = 255.0
+                self.velocity = -5
+            self.alpha = alpha
+            return self.alpha
+
+    def __init__(self):
+        d = defaultdict(TimePixels.Pixel)
+        self.pixels: dict[Tuple[int, int], TimePixels.Pixel] = d
+
+    def zap_with_ray(self, time_image, ray_image):
+        ray_pixels = ray_image.load()
+        time_image_pixels = time_image.load()
+        for x in range(WIDTH):
+            for y in range(HEIGHT):
+                a = ray_pixels[x, y]
+                if a > 20 and time_image_pixels[x, y]:
+                    self.pixels[x, y].velocity = 100
+        img = Image.new("L", (WIDTH, HEIGHT), color=0)
+        for point, px in self.pixels.items():
+            img.putpixel(point, int(px.step()))
+        return img
 
 
 class Background:
