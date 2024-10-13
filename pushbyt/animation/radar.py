@@ -154,14 +154,9 @@ class SecondHand:
         
         is_activate = False
         if self.last_ray_angle is not None:
-            a, b = self.last_ray_angle, ray_angle
+            a, b = second_hand_angle > self.last_ray_angle, second_hand_angle < ray_angle
             # Handle the case when the ray angle crosses the 0 or 2π radians boundary
-            if b < a:
-                if second_hand_angle > a or second_hand_angle < b:
-                    is_activate = True
-            else:
-                if second_hand_angle > a and second_hand_angle < b:
-                    is_activate = True
+            is_activate = (a or b) if ray_angle < self.last_ray_angle else (a and b)
             
 
         self.last_ray_angle = ray_angle
