@@ -15,8 +15,7 @@ SCALED_WIDTH, SCALED_HEIGHT = SCALE_FACTOR * WIDTH, SCALE_FACTOR * HEIGHT
 
 
 def clock_radar() -> Generator[Image.Image, datetime, None]:
-    font = ImageFont.truetype(
-        "./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
+    font = ImageFont.truetype("./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
     renderer = Renderer(font)
     next_frame = Image.new("RGB", (WIDTH, HEIGHT), color="black")
     while True:
@@ -69,7 +68,7 @@ def get_time_img(font, text):
     return result
 
 
-def second_hand_img(radian) -> Image.Image:
+def get_ray_image(radian) -> Image.Image:
     image = Image.new("L", (SCALED_WIDTH, SCALED_HEIGHT), color="black")
     center_x, center_y = SCALED_WIDTH // 2, SCALED_HEIGHT // 2
     length = 400
@@ -80,8 +79,7 @@ def second_hand_img(radian) -> Image.Image:
 
     draw = ImageDraw.Draw(image)
 
-    draw.line((center_x, center_y, end_x, end_y),
-              fill="white", width=SCALE_FACTOR)
+    draw.line((center_x, center_y, end_x, end_y), fill="white", width=SCALE_FACTOR)
 
     image = image.resize((WIDTH, HEIGHT), resample=Image.LANCZOS)
 
@@ -94,9 +92,7 @@ def transform_ray(ray_image, time_image):
 
     # Get the list of non-opaque pixel coordinates
     non_opaque_pixels = [
-        (x, y) for x in range(WIDTH)
-        for y in range(HEIGHT)
-        if ray_pixels[x, y] != 0
+        (x, y) for x in range(WIDTH) for y in range(HEIGHT) if ray_pixels[x, y] != 0
     ]
 
     # Calculate the distance from the origin for each non-opaque pixel
@@ -106,8 +102,7 @@ def transform_ray(ray_image, time_image):
     ]
 
     # Sort the non-opaque pixels based on their distances from the origin
-    sorted_pixels = [pixel for _, pixel in sorted(
-        zip(distances, non_opaque_pixels))]
+    sorted_pixels = [pixel for _, pixel in sorted(zip(distances, non_opaque_pixels))]
 
     # Create a new ray image
     new_ray_image = Image.new("L", ray_image.size, color=0)
@@ -123,14 +118,52 @@ def transform_ray(ray_image, time_image):
     return new_ray_image
 
 
-alpha = Image.new("L", (WIDTH, HEIGHT))
-
 class SecondHand:
-    pass
+    @dataclass
+    class Pixel:
+        color = (0, 0, 0)
+        alpha = 0
+
+        def activate(self, bg_color, alpha):
+            self.color = (0, 0, 0)
+            self.target_color = bg_color
+            self.alpha = alpha
+
+        def step(self) -> Tuple[int, int, int, int]:
+            p = (*self.color, self.alpha)
+            if self.color == self.target_color:
+                self.alpha = max(0, self.alpha - 4)
+
+            self.color = tuple(
+                 min(t, c + 18)
+                 for c, t in zip(self.color, self.target_color)
+            )
+
+            return p # type: ignore
+
+    def __init__(self):
+        self.pixels: dict[Tuple[int, int], SecondHand.Pixel] = defaultdict(SecondHand.Pixel)
+
+    def compose_ray(self, t: datetime, ray_img, bg_image) -> Image.Image:
+        img = Image.new("RGBA", (WIDTH, HEIGHT), color=(0, 0, 0, 0))
+        hand_img = get_ray_image(datetime_to_radian(t, 60))
+        for x in range(WIDTH):
+            for y in range(HEIGHT):
+                point = x, y
+                if ray_img.getpixel(point)> 20 and (hpxl := hand_img.getpixel(point)):
+                    self.pixels[point].activate(bg_image.getpixel(point), hpxl)
+
+        for point, pixel in self.pixels.items():
+            img.putpixel(point, pixel.step())
+
+        # img.paste(bg_image, mask=hand_img)
+        return img
+
 
 class Renderer:
     def __init__(self, font):
         self.font = font
+        self.alpha = Image.new("L", (WIDTH, HEIGHT))
         self.time_pixels = TimePixels()
         self.background = Background()
         self.second_hand = SecondHand()
@@ -138,39 +171,20 @@ class Renderer:
     def render_frame(self, t):
         background_img = self.background.render_frame()
         time_image = compose_time_img(self.font, t)
-        radian = datetime_to_radian(t)
-        global alpha
-        ray_image = second_hand_img(radian)
-
-        for x in range(WIDTH):
-            for y in range(HEIGHT):
-                pos = x, y
-                ray_a = ray_image.getpixel(pos)
-                time_a = alpha.getpixel(pos)
-                new_time_a = time_a * 0.99
-                if ray_a and time_image.getpixel(pos):
-                    new_time_a = min(255, time_a + ray_a)
-                    # print(time_a, ray_a, new_color)
-                alpha.putpixel(pos, int(new_time_a))
+        ray_image = get_ray_image(datetime_to_radian(t, 9))
 
         img = self.time_pixels.zap_with_ray(time_image, ray_image, background_img)
         ray_mask = transform_ray(ray_image, time_image)
+        second_hand_img = self.second_hand.compose_ray(t, ray_image, background_img)
+        img.paste(second_hand_img, mask=second_hand_img)
         img.paste(background_img, mask=ray_mask)
-
-        # Optional extra drawing for tick marks, etc.
-        # draw = ImageDraw.Draw(img)
-        # for x in range(32, 33):
-        #     for y in range(11, 13):
-        #         draw.point((x, y), fill="white")
-        #     for y in range(19, 21):
-        #         draw.point((x, y), fill="white")
 
         return img
 
 
-def datetime_to_radian(t):
+def datetime_to_radian(t, steps):
     seconds_total = t.second + t.microsecond / 1e6
-    return (seconds_total / 10) * 2 * math.pi
+    return (seconds_total / steps) * 2 * math.pi
 
 
 class TimePixels:
@@ -199,7 +213,7 @@ class TimePixels:
         for x in range(WIDTH):
             for y in range(HEIGHT):
                 a = ray_pixels[x, y]
-                if a > 20 and time_image_pixels[x, y]:
+                if a > 15 and time_image_pixels[x, y]:
                     pxl = self.pixels[x, y]
                     pxl.velocity = 0.18
                     pxl.color = bg_pixels[x, y]
@@ -219,8 +233,7 @@ class Background:
         self.edge_color = (175, 135, 155)
         self.velocity = [0.5, -3.0, 4.0]
         drop_color = random.randint(0, 2)
-        self.floor_colors = [0.0 if n == drop_color else 125.0
-                             for n in range(3)]
+        self.floor_colors = [0.0 if n == drop_color else 125.0 for n in range(3)]
 
     def shift_colors(self):
         for i in range(3):
