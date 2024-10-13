@@ -141,21 +141,38 @@ class SecondHand:
             return p # type: ignore
 
     def __init__(self):
+        self.fill_img = Image.new("RGB", (WIDTH, HEIGHT), color="black")
+        self.black_img = Image.new("RGBA", (WIDTH, HEIGHT), color=(0,0,0,10))
         self.pixels: dict[Tuple[int, int], SecondHand.Pixel] = defaultdict(SecondHand.Pixel)
+        self.last_ray_angle = None
 
-    def compose_ray(self, timediff: timedelta, ray_img, bg_image) -> Image.Image:
+    def compose_ray(self, timediff: timedelta, ray_angle, bg_image) -> Image.Image:
         img = Image.new("RGBA", (WIDTH, HEIGHT), color=(0, 0, 0, 0))
         hand_img = get_ray_image(datetime_to_radian(timediff, 60))
-        for x in range(WIDTH):
-            for y in range(HEIGHT):
-                point = x, y
-                if ray_img.getpixel(point)> 20 and (hpxl := hand_img.getpixel(point)):
-                    self.pixels[point].activate(bg_image.getpixel(point), hpxl)
+        # Check if the ray swept past the second hand
+        second_hand_angle = datetime_to_radian(timediff, 60)
+        
+        is_activate = False
+        if self.last_ray_angle is not None:
+            a, b = self.last_ray_angle, ray_angle
+            # Handle the case when the ray angle crosses the 0 or 2π radians boundary
+            if b < a:
+                if second_hand_angle > a or second_hand_angle < b:
+                    is_activate = True
+            else:
+                if second_hand_angle > a and second_hand_angle < b:
+                    is_activate = True
+            
 
-        for point, pixel in self.pixels.items():
-            img.putpixel(point, pixel.step())
+        self.last_ray_angle = ray_angle
+        if is_activate:
+            # The ray swept past the second hand
+            self.fill_img = bg_image.copy()
+        else:
+            self.fill_img.paste(self.black_img, mask=self.black_img)
+        
 
-        # img.paste(bg_image, mask=hand_img)
+        img.paste(self.fill_img, mask=hand_img)
         return img
 
 
@@ -172,11 +189,12 @@ class Renderer:
         time_diff = t - self.start_time
         background_img = self.background.render_frame()
         time_image = compose_time_img(self.font, t)
-        ray_image = get_ray_image(datetime_to_radian(time_diff, 9))
+        ray_angle = datetime_to_radian(time_diff, 9)
+        ray_image = get_ray_image(ray_angle)
 
         img = self.time_pixels.zap_with_ray(time_image, ray_image, background_img)
         ray_mask = transform_ray(ray_image, time_image)
-        second_hand_img = self.second_hand.compose_ray(time_diff, ray_image, background_img)
+        second_hand_img = self.second_hand.compose_ray(time_diff, ray_angle, background_img)
         img.paste(second_hand_img, mask=second_hand_img)
         img.paste(background_img, mask=ray_mask)
 
@@ -185,7 +203,8 @@ class Renderer:
 
 def datetime_to_radian(time_diff: timedelta, steps):
     total_milliseconds = time_diff.total_seconds() * 1000
-    return (total_milliseconds / (steps * 1000)) * 2 * math.pi
+    angle = (total_milliseconds / (steps * 1000)) * 2 * math.pi
+    return angle % (2 * math.pi)
 
 
 class TimePixels:
