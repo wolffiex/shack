@@ -123,22 +123,21 @@ class SecondHand:
     class Pixel:
         color = (0, 0, 0)
         alpha = 0
+        target_alpha = 0
+        v = 0
 
         def activate(self, bg_color, alpha):
-            self.color = (0, 0, 0)
-            self.target_color = bg_color
-            self.alpha = alpha
+            self.color = bg_color
+            if alpha > self.target_alpha:
+                self.target_alpha = alpha
+                # self.alpha = 0
+                self.v = 38
 
         def step(self) -> Tuple[int, int, int, int]:
             p = (*self.color, self.alpha)
-            if self.color == self.target_color:
-                self.alpha = max(0, self.alpha - 4)
-
-            self.color = tuple(
-                 min(t, c + 18)
-                 for c, t in zip(self.color, self.target_color)
-            )
-
+            self.alpha = min(self.target_alpha, max(0, self.alpha + self.v))
+            if self.alpha == self.target_alpha:
+                self.v  = -3
             return p # type: ignore
 
     def __init__(self):
