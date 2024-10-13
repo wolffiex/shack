@@ -15,16 +15,13 @@ SCALED_WIDTH, SCALED_HEIGHT = SCALE_FACTOR * WIDTH, SCALE_FACTOR * HEIGHT
 
 
 def clock_radar() -> Generator[Image.Image, datetime, None]:
-    bg = Background()
     font = ImageFont.truetype(
         "./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
-    time_pixels = TimePixels()
+    renderer = Renderer(font)
     next_frame = Image.new("RGB", (WIDTH, HEIGHT), color="black")
     while True:
         t = yield next_frame
-        time_img = compose_time_img(font, t)
-        next_frame = render_frame(time_pixels,
-               datetime_to_radian(t), time_img, bg.render_frame())
+        next_frame = renderer.render_frame(t)
 
 
 def compose_time_img(font, t: datetime) -> Image.Image:
@@ -35,24 +32,6 @@ def compose_time_img(font, t: datetime) -> Image.Image:
     time_image.paste(hours_img, box=(0, 0))
     time_image.paste(mins_img, box=(32, 0))
     return time_image
-
-
-def radar(start_time: datetime):
-    bg = Background()
-    t = start_time
-    font = ImageFont.truetype(
-        "./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
-    hours_img = get_time_img(font, "99")
-    mins_img = get_time_img(font, "99")
-    time_image = Image.new("L", (WIDTH, HEIGHT), color="black")
-    time_image.paste(hours_img, box=(0, 0))
-    time_image.paste(mins_img, box=(32, 0))
-    time_pixels = TimePixels()
-    while True:
-        yield render_frame(time_pixels,
-                           datetime_to_radian(t), time_image.copy(), bg.render_frame())
-
-        t += FRAME_TIME
 
 
 def get_time_img(font, text):
@@ -146,35 +125,47 @@ def transform_ray(ray_image, time_image):
 
 alpha = Image.new("L", (WIDTH, HEIGHT))
 
+class SecondHand:
+    pass
 
-def render_frame(time_pixels, radian, time_image, background):
-    global alpha
-    ray_image = second_hand_img(radian)
+class Renderer:
+    def __init__(self, font):
+        self.font = font
+        self.time_pixels = TimePixels()
+        self.background = Background()
+        self.second_hand = SecondHand()
 
-    for x in range(WIDTH):
-        for y in range(HEIGHT):
-            pos = x, y
-            ray_a = ray_image.getpixel(pos)
-            time_a = alpha.getpixel(pos)
-            new_time_a = time_a * 0.99
-            if ray_a and time_image.getpixel(pos):
-                new_time_a = min(255, time_a + ray_a)
-                # print(time_a, ray_a, new_color)
-            alpha.putpixel(pos, int(new_time_a))
+    def render_frame(self, t):
+        background_img = self.background.render_frame()
+        time_image = compose_time_img(self.font, t)
+        radian = datetime_to_radian(t)
+        global alpha
+        ray_image = second_hand_img(radian)
 
-    img = time_pixels.zap_with_ray(time_image, ray_image, background)
-    ray_mask = transform_ray(ray_image, time_image)
-    img.paste(background, mask=ray_mask)
+        for x in range(WIDTH):
+            for y in range(HEIGHT):
+                pos = x, y
+                ray_a = ray_image.getpixel(pos)
+                time_a = alpha.getpixel(pos)
+                new_time_a = time_a * 0.99
+                if ray_a and time_image.getpixel(pos):
+                    new_time_a = min(255, time_a + ray_a)
+                    # print(time_a, ray_a, new_color)
+                alpha.putpixel(pos, int(new_time_a))
 
-    # Optional extra drawing for tick marks, etc.
-    # draw = ImageDraw.Draw(img)
-    # for x in range(32, 33):
-    #     for y in range(11, 13):
-    #         draw.point((x, y), fill="white")
-    #     for y in range(19, 21):
-    #         draw.point((x, y), fill="white")
+        img = self.time_pixels.zap_with_ray(time_image, ray_image, background_img)
+        ray_mask = transform_ray(ray_image, time_image)
+        img.paste(background_img, mask=ray_mask)
 
-    return img
+        # Optional extra drawing for tick marks, etc.
+        # draw = ImageDraw.Draw(img)
+        # for x in range(32, 33):
+        #     for y in range(11, 13):
+        #         draw.point((x, y), fill="white")
+        #     for y in range(19, 21):
+        #         draw.point((x, y), fill="white")
+
+        return img
 
 
 def datetime_to_radian(t):
