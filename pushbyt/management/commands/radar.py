@@ -17,7 +17,7 @@ class Command(RichCommand):
     def generate(self):
         t = datetime.now()
         frames = []
-        radar = clock_radar()
+        radar = clock_radar(t)
         next(radar)  # Prime the generator
         
         for _ in range(600):

@@ -149,7 +149,7 @@ def generate_clock(start_time: datetime):
     source = random.choice(CLOCK_SOURCES)
 
     # Choose the appropriate animation generator based on the selected source
-    frames = clock_radar() if source == Animation.Source.RADAR else clock_rays()
+    frames = clock_radar(t) if source == Animation.Source.RADAR else clock_rays()
 
     next(frames)
     animations = []

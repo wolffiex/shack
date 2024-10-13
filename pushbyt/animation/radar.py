@@ -5,7 +5,7 @@ from typing import Tuple, Generator
 from collections import defaultdict
 
 from PIL import Image, ImageDraw, ImageFont, ImageChops
-from datetime import datetime
+from datetime import datetime, timedelta
 from pushbyt.animation import FRAME_TIME
 
 
@@ -14,9 +14,9 @@ SCALE_FACTOR = 4
 SCALED_WIDTH, SCALED_HEIGHT = SCALE_FACTOR * WIDTH, SCALE_FACTOR * HEIGHT
 
 
-def clock_radar() -> Generator[Image.Image, datetime, None]:
+def clock_radar(start_time: datetime) -> Generator[Image.Image, datetime, None]:
     font = ImageFont.truetype("./fonts/DepartureMono/DepartureMono-Regular.ttf", 22)
-    renderer = Renderer(font)
+    renderer = Renderer(font, start_time)
     next_frame = Image.new("RGB", (WIDTH, HEIGHT), color="black")
     while True:
         t = yield next_frame
@@ -144,9 +144,9 @@ class SecondHand:
     def __init__(self):
         self.pixels: dict[Tuple[int, int], SecondHand.Pixel] = defaultdict(SecondHand.Pixel)
 
-    def compose_ray(self, t: datetime, ray_img, bg_image) -> Image.Image:
+    def compose_ray(self, timediff: timedelta, ray_img, bg_image) -> Image.Image:
         img = Image.new("RGBA", (WIDTH, HEIGHT), color=(0, 0, 0, 0))
-        hand_img = get_ray_image(datetime_to_radian(t, 60))
+        hand_img = get_ray_image(datetime_to_radian(timediff, 60))
         for x in range(WIDTH):
             for y in range(HEIGHT):
                 point = x, y
@@ -161,30 +161,32 @@ class SecondHand:
 
 
 class Renderer:
-    def __init__(self, font):
+    def __init__(self, font, start_time):
         self.font = font
+        self.start_time = start_time
         self.alpha = Image.new("L", (WIDTH, HEIGHT))
         self.time_pixels = TimePixels()
         self.background = Background()
         self.second_hand = SecondHand()
 
     def render_frame(self, t):
+        time_diff = t - self.start_time
         background_img = self.background.render_frame()
         time_image = compose_time_img(self.font, t)
-        ray_image = get_ray_image(datetime_to_radian(t, 9))
+        ray_image = get_ray_image(datetime_to_radian(time_diff, 9))
 
         img = self.time_pixels.zap_with_ray(time_image, ray_image, background_img)
         ray_mask = transform_ray(ray_image, time_image)
-        second_hand_img = self.second_hand.compose_ray(t, ray_image, background_img)
+        second_hand_img = self.second_hand.compose_ray(time_diff, ray_image, background_img)
         img.paste(second_hand_img, mask=second_hand_img)
         img.paste(background_img, mask=ray_mask)
 
         return img
 
 
-def datetime_to_radian(t, steps):
-    seconds_total = t.second + t.microsecond / 1e6
-    return (seconds_total / steps) * 2 * math.pi
+def datetime_to_radian(time_diff: timedelta, steps):
+    total_milliseconds = time_diff.total_seconds() * 1000
+    return (total_milliseconds / (steps * 1000)) * 2 * math.pi
 
 
 class TimePixels:
