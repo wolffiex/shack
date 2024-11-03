@@ -107,21 +107,6 @@ def get_monitoring():
             assert result
             co2, celsius, humidity, air_time = result
 
-            cur.execute("""
-                SELECT time, detected FROm motion ORDER BY time desc LIMIT 15
-            """)
-
-            results = cur.fetchall()
-
-            motion_spans = []
-            current_span_end = None
-            for time, detected in results:
-                if not detected:
-                    current_span_end = time
-                elif current_span_end:
-                    motion_spans.append((time, current_span_end - time))
-                    current_span_end = None
-
     farenheight = celsius * 9 / 5 + 32
     air_delay = timezone.now() - air_time
     return {
@@ -129,7 +114,6 @@ def get_monitoring():
         "temperature": f"{round(farenheight)}° F",
         "humidity": f"{round(humidity)} %",
         "air_delay": f"{round(air_delay.total_seconds())} seconds ago",
-        "motion_spans": motion_spans,
     }
 
 
