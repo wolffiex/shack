@@ -3,17 +3,20 @@
 <html>
 
 <head>
-  <script type="module" src="/pushbyt/static/js/dashboard.js">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="module" src="/pushbyt/static/js/dashboard.js" >
   </script>
   <style>
     .container {
-      width: fit-content;
-      /* or */
-      /* display: inline-block; */
+      width: 95%;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 10px;
     }
 
     table {
       border-collapse: collapse;
+      width: 100%;
     }
 
     td {
@@ -35,6 +38,17 @@
 
     #timerDisplay {
       font-family: monospace;
+    }
+
+    fieldset a {
+      display: block;
+      padding: 15px;
+      margin: 12px 0;
+      background: #f5f5f5;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 1.5rem;
+      color: #222222;
     }
 
     dialog.alert {
