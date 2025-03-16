@@ -3,7 +3,7 @@ from pushbyt.animation import clock_radar
 from pushbyt.animation import FRAME_TIME, render
 from pathlib import Path
 from itertools import islice
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class Command(RichCommand):
@@ -15,12 +15,20 @@ class Command(RichCommand):
         self.console.print(self.generate())
 
     def generate(self):
-        t = datetime.now()
+        # Round to the nearest second to ensure synchronization
+        now = datetime.now().replace(microsecond=0)
+        # Calculate a start_time that aligns with the 15-second interval
+        current_second = now.second
+        second_offset = current_second % 15
+        start_time = now - timedelta(seconds=second_offset)
+        
         frames = []
-        radar = clock_radar(t)
+        radar = clock_radar(start_time)
         next(radar)  # Prime the generator
         
-        for _ in range(600):
+        # Generate 15 seconds of animation (150 frames at 10 FPS)
+        t = now.replace(microsecond=0)
+        for _ in range(150):
             frame = radar.send(t)
             frames.append(frame)
             t += FRAME_TIME
