@@ -21,6 +21,8 @@ CONTROLS = {
     "tidbyt_switch": ("/services/switch", "switch.tidbyt_switch_2"),
     "heat_switch": ("/services/switch", "switch.space_heater_switch_2"),
     "heat_power": ("/services/script", "script.shack_space_heater_power_on"),
+    "security_light_switch": ("/services/switch", "switch.security_light_switch_2"),
+    "fountain_switch": ("/services/switch", "switch.fountain_switch_2"),
 }
 
 
@@ -58,6 +60,8 @@ async def dashboard(request):
             "tidbyt_switch": False,
             "heat_switch": False,
             "heat_power": "unavailable",
+            "security_light_switch": False,
+            "fountain_switch": False,
         }
     
     try:
@@ -106,6 +110,8 @@ async def ha_info():
                 ha_api_url + "/states/switch.tidbyt_switch_2",
                 ha_api_url + "/states/switch.space_heater_switch_2",
                 ha_api_url + "/states/sensor.space_heater_power_2",
+                ha_api_url + "/states/switch.security_light_switch_2",
+                ha_api_url + "/states/switch.fountain_switch_2",
             ]
             
             # Individual requests with error handling instead of gather
@@ -122,14 +128,14 @@ async def ha_info():
                             return {"state": "unknown"}
                     responses.append(MockResponse())
             
-            # Ensure we have exactly 3 responses
-            while len(responses) < 3:
+            # Ensure we have exactly 5 responses
+            while len(responses) < 5:
                 class MockResponse:
                     def json(self):
                         return {"state": "unknown"}
                 responses.append(MockResponse())
             
-            t_switch, h_switch, h_power = [
+            t_switch, h_switch, h_power, security_light, fountain = [
                 response.json()["state"] for response in responses
             ]
             
@@ -138,6 +144,8 @@ async def ha_info():
                 "tidbyt_switch": convert_switch_state(t_switch) if t_switch != "unknown" else False,
                 "heat_switch": convert_switch_state(h_switch) if h_switch != "unknown" else False,
                 "heat_power": h_power if h_power != "unknown" else "0",
+                "security_light_switch": convert_switch_state(security_light) if security_light != "unknown" else False,
+                "fountain_switch": convert_switch_state(fountain) if fountain != "unknown" else False,
             }
     
     except Exception as e:
@@ -146,6 +154,8 @@ async def ha_info():
             "tidbyt_switch": False,
             "heat_switch": False,
             "heat_power": "0",
+            "security_light_switch": False,
+            "fountain_switch": False,
         }
 
 

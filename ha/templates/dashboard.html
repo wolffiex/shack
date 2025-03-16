@@ -124,6 +124,16 @@
         </a>
       </div>
       <div>
+        <a href="{% url 'control' name='security_light_switch'%}?action={% if security_light_switch %}turn_off{% else %}turn_on{% endif %}">
+          <span>{% if security_light_switch %}✅{% else %}❌{% endif %}</span> Speaker bulb
+        </a>
+      </div>
+      <div>
+        <a href="{% url 'control' name='fountain_switch'%}?action={% if fountain_switch %}turn_off{% else %}turn_on{% endif %}">
+          <span>{% if fountain_switch %}✅{% else %}❌{% endif %}</span> String lights
+        </a>
+      </div>
+      <div>
         <a href="{% url 'control' name='heat_switch'%}?action={% if heat_switch %}turn_off{% else %}turn_on{% endif %}">
           <span>{% if heat_switch %}✅{% else %}❌{% endif %}</span> Heat switch
         </a>
