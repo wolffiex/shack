@@ -124,114 +124,71 @@ class SecondHand:
         color = (0, 0, 0)
         alpha = 0
         target_alpha = 0
-        v = 0
-        frame_count = 0
 
-        def activate(self, bg_color, alpha):
-            # Set the pixel color
-            self.color = bg_color
-
-            # When activating, set both target and current alpha
+        def activate(self, color, alpha):
+            self.color = color
             if alpha > self.target_alpha:
                 self.target_alpha = alpha
-                self.alpha = alpha  # Start at full brightness
+                self.alpha = alpha
 
         def step(self) -> Tuple[int, int, int, int]:
-            # Simple linear fade over 30 frames
             fade_rate = self.target_alpha / 30.0
-
-            # If we have a target and we're not already at 0
             if self.target_alpha > 0 and self.alpha > 0:
-                # Decrease alpha by fade rate (but don't go below 0)
                 self.alpha = max(0, self.alpha - fade_rate)
-
-            # Return current color and alpha
             return (*self.color, int(self.alpha))
 
     def __init__(self):
         self.ellipse_a = int(WIDTH * 0.45)
         self.ellipse_b = int(HEIGHT * 0.45)
-        self.pixels: dict[Tuple[int, int], SecondHand.Pixel] = defaultdict(
-            SecondHand.Pixel
-        )
+        self.pixels = defaultdict(SecondHand.Pixel)
         self.last_ray_angle = None
 
     def get_dot_img(self, angle):
-        # Create a mask image (L mode) at high resolution
         mask = Image.new("L", (SCALED_WIDTH, SCALED_HEIGHT), color=0)
         draw = ImageDraw.Draw(mask)
 
-        # Calculate dot position on ellipse
         x = SCALED_WIDTH / 2 + int(self.ellipse_a * SCALE_FACTOR * math.sin(angle))
         y = SCALED_HEIGHT / 2 - int(self.ellipse_b * SCALE_FACTOR * math.cos(angle))
 
-        # Draw white circle on mask (255 = fully opaque)
         draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=255)
-
-        # Resize to final resolution
         return mask.resize((WIDTH, HEIGHT), resample=Image.LANCZOS)
 
     def compose_ray(self, timediff: timedelta, ray_angle, bg_image) -> Image.Image:
-        # Calculate the current second hand angle
         second_hand_angle = datetime_to_radian(timediff, 60)
-
-        # Create the dot mask for the current second position
         dot_mask = self.get_dot_img(second_hand_angle)
 
-        # Create a high-res mask for the radar ray to check pixel intersections
         ray_mask = Image.new("L", (SCALED_WIDTH, SCALED_HEIGHT), color=0)
         draw = ImageDraw.Draw(ray_mask)
 
-        # Draw the ray line from center outward
         center_x, center_y = SCALED_WIDTH // 2, SCALED_HEIGHT // 2
-        length = (
-            max(SCALED_WIDTH, SCALED_HEIGHT) * 2
-        )  # Make sure it extends beyond image
-
-        # Calculate the ray endpoint
+        length = max(SCALED_WIDTH, SCALED_HEIGHT) * 2
         end_x = center_x + int(length * math.sin(ray_angle))
         end_y = center_y - int(length * math.cos(ray_angle))
 
-        # Draw the ray line
         draw.line((center_x, center_y, end_x, end_y), fill=255, width=SCALE_FACTOR)
-
-        # Resize to match actual display dimensions
         ray_mask = ray_mask.resize((WIDTH, HEIGHT), resample=Image.LANCZOS)
 
-        # Find pixels where the ray intersects with the dot
         ray_data = ray_mask.getdata()
         dot_data = dot_mask.getdata()
 
-        # For each pixel, check if it's in both the ray and the dot
         for y in range(HEIGHT):
             for x in range(WIDTH):
                 index = y * WIDTH + x
                 if index < len(ray_data) and index < len(dot_data):
-                    # If it's in both the ray and the dot, activate it
                     if ray_data[index] > 20 and dot_data[index] > 0:
-                        # Get pixel at this position
                         pixel = self.pixels[(x, y)]
-                        # Use the actual brightness from the dot mask
                         brightness = dot_data[index]
-                        # Use bright red for better visibility
-                        # Activate the pixel with red color and brightness from the mask
                         pixel.activate((255, 0, 0), brightness)
 
-        # Save the current ray angle
         self.last_ray_angle = ray_angle
 
-        # Create transparent image for result
         img = Image.new("RGBA", (WIDTH, HEIGHT), color=(0, 0, 0, 0))
 
-        # Step all pixels and draw the ones that are visible
         for pos, pixel in list(self.pixels.items()):
-            x, y = pos
             color_with_alpha = pixel.step()
-            # Only draw pixels that have some visibility
             if color_with_alpha[3] > 0:
                 img.putpixel(pos, color_with_alpha)
             else:
-                # Remove pixels that have faded completely
                 del self.pixels[pos]
 
         return img
