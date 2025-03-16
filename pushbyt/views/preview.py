@@ -19,8 +19,7 @@ def get_preview(_):
     if anim:
         if anim.served_at:
             logger.error(
-                f"Already served {anim.file_path} at {
-                    anim.served_at} now {now}"
+                f"Already served {anim.file_path} at {anim.served_at} now {now}"
             )
     else:
         anim = Animation()

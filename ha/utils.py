@@ -15,5 +15,5 @@ def tidbyt_turn_on():
         "Content-Type": "application/json",
     }
     data = {"entity_id": "switch.tidbyt_switch_2"}
-    response = httpx.post(url, headers=headers, json=data)
+    response = httpx.post(url, headers=headers, json=data, timeout=5.0)
     response.raise_for_status()

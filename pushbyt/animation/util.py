@@ -23,8 +23,7 @@ def render(frames, file_path) -> bool:
         frames_arg = " ".join(
             f"-frame {tf} +{FRAME_TIME.total_seconds() * 1000}" for tf in in_files
         )
-        cmd = f"webpmux {
-            frames_arg} -loop 1 -bgcolor 255,255,255,255 -o {file_path}"
+        cmd = f"webpmux {frames_arg} -loop 1 -bgcolor 255,255,255,255 -o {file_path}"
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(result.stderr)
