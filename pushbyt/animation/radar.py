@@ -134,40 +134,92 @@ class SecondHand:
                 self.v = 38
 
         def step(self) -> Tuple[int, int, int, int]:
-            p = (*self.color, self.alpha)
-            self.alpha = min(self.target_alpha, max(0, self.alpha + self.v))
-            if self.alpha == self.target_alpha:
-                self.v  = -3
-            return p # type: ignore
+            # For testing: keep pixel fully illuminated once activated
+            if self.target_alpha > 0:
+                self.alpha = self.target_alpha  # Keep at target alpha (no fading)
+            return (*self.color, self.alpha)  # Return current color and alpha
 
     def __init__(self):
-        self.fill_img = Image.new("RGB", (WIDTH, HEIGHT), color="black")
-        self.black_img = Image.new("RGBA", (WIDTH, HEIGHT), color=(0,0,0,10))
-        self.pixels: dict[Tuple[int, int], SecondHand.Pixel] = defaultdict(SecondHand.Pixel)
+        self.ellipse_a = int(WIDTH * 0.45)
+        self.ellipse_b = int(HEIGHT * 0.45)
+        self.pixels: dict[Tuple[int, int], SecondHand.Pixel] = defaultdict(
+            SecondHand.Pixel
+        )
         self.last_ray_angle = None
 
+    def get_dot_img(self, angle):
+        # Create a mask image (L mode) at high resolution
+        mask = Image.new("L", (SCALED_WIDTH, SCALED_HEIGHT), color=0)
+        draw = ImageDraw.Draw(mask)
+
+        # Calculate dot position on ellipse
+        x = SCALED_WIDTH / 2 + int(self.ellipse_a * SCALE_FACTOR * math.sin(angle))
+        y = SCALED_HEIGHT / 2 - int(self.ellipse_b * SCALE_FACTOR * math.cos(angle))
+
+        # Draw white circle on mask (255 = fully opaque)
+        draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=255)
+
+        # Resize to final resolution
+        return mask.resize((WIDTH, HEIGHT), resample=Image.LANCZOS)
+
     def compose_ray(self, timediff: timedelta, ray_angle, bg_image) -> Image.Image:
-        img = Image.new("RGBA", (WIDTH, HEIGHT), color=(0, 0, 0, 0))
-        hand_img = get_ray_image(datetime_to_radian(timediff, 60))
-        # Check if the ray swept past the second hand
+        # Calculate the current second hand angle
         second_hand_angle = datetime_to_radian(timediff, 60)
         
-        is_activate = False
-        if self.last_ray_angle is not None:
-            a, b = second_hand_angle > self.last_ray_angle, second_hand_angle < ray_angle
-            # Handle the case when the ray angle crosses the 0 or 2π radians boundary
-            is_activate = (a or b) if ray_angle < self.last_ray_angle else (a and b)
-            
-
-        self.last_ray_angle = ray_angle
-        if is_activate:
-            # The ray swept past the second hand
-            self.fill_img = bg_image.copy()
-        else:
-            self.fill_img.paste(self.black_img, mask=self.black_img)
+        # Create the dot mask for the current second position
+        dot_mask = self.get_dot_img(second_hand_angle)
         
+        # Create a high-res mask for the radar ray to check pixel intersections
+        ray_mask = Image.new("L", (SCALED_WIDTH, SCALED_HEIGHT), color=0)
+        draw = ImageDraw.Draw(ray_mask)
+        
+        # Draw the ray line from center outward
+        center_x, center_y = SCALED_WIDTH // 2, SCALED_HEIGHT // 2
+        length = max(SCALED_WIDTH, SCALED_HEIGHT) * 2  # Make sure it extends beyond image
+        
+        # Calculate the ray endpoint
+        end_x = center_x + int(length * math.sin(ray_angle))
+        end_y = center_y - int(length * math.cos(ray_angle))
+        
+        # Draw the ray line
+        draw.line((center_x, center_y, end_x, end_y), fill=255, width=SCALE_FACTOR)
+        
+        # Resize to match actual display dimensions
+        ray_mask = ray_mask.resize((WIDTH, HEIGHT), resample=Image.LANCZOS)
+        
+        # Find pixels where the ray intersects with the dot
+        ray_data = ray_mask.getdata()
+        dot_data = dot_mask.getdata()
+        
+        # For each pixel, check if it's in both the ray and the dot
+        for y in range(HEIGHT):
+            for x in range(WIDTH):
+                index = y * WIDTH + x
+                if index < len(ray_data) and index < len(dot_data):
+                    # If it's in both the ray and the dot, activate it
+                    if ray_data[index] > 50 and dot_data[index] > 50:
+                        # Get pixel at this position
+                        pixel = self.pixels[(x, y)]
+                        # Activate it with white color and max alpha
+                        pixel.activate((255, 255, 255), 255)
+        
+        # Save the current ray angle
+        self.last_ray_angle = ray_angle
+        
+        # Create transparent image for result
+        img = Image.new("RGBA", (WIDTH, HEIGHT), color=(0, 0, 0, 0))
+        
+        # Step all pixels and draw the ones that are visible
+        for pos, pixel in list(self.pixels.items()):
+            x, y = pos
+            color_with_alpha = pixel.step()
+            # Only draw pixels that have some visibility
+            if color_with_alpha[3] > 0:
+                img.putpixel(pos, color_with_alpha)
+            else:
+                # Remove pixels that have faded completely
+                del self.pixels[pos]
 
-        img.paste(self.fill_img, mask=hand_img)
         return img
 
 
@@ -189,7 +241,9 @@ class Renderer:
 
         img = self.time_pixels.zap_with_ray(time_image, ray_image, background_img)
         ray_mask = transform_ray(ray_image, time_image)
-        second_hand_img = self.second_hand.compose_ray(time_diff, ray_angle, background_img)
+        second_hand_img = self.second_hand.compose_ray(
+            time_diff, ray_angle, background_img
+        )
         img.paste(second_hand_img, mask=second_hand_img)
         img.paste(background_img, mask=ray_mask)
 

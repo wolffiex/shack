@@ -160,8 +160,7 @@ def generate_clock(start_time: datetime):
             anim_frames.append(frames.send(t))
             t += FRAME_TIME
         file_path = (
-            Path("render") /
-            (f"{source}_" + anim_start_time.strftime("%j-%H-%M-%S"))
+            Path("render") / (f"{source}_" + anim_start_time.strftime("%j-%H-%M-%S"))
         ).with_suffix(".webp")
         render(anim_frames, file_path)
         animations.append(

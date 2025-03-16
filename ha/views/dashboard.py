@@ -51,7 +51,7 @@ def post_ha_action(api, action, entity_id):
 
 async def dashboard(request):
     error_data = {"error_message": request.GET.get("error_message", "")}
-    
+
     try:
         ha_data = await ha_info()
     except Exception as e:
@@ -63,7 +63,7 @@ async def dashboard(request):
             "security_light_switch": False,
             "fountain_switch": False,
         }
-    
+
     try:
         monitoring_data = get_monitoring()
     except Exception as e:
@@ -74,13 +74,13 @@ async def dashboard(request):
             "humidity": "-- %",
             "air_delay": "unavailable",
         }
-    
+
     try:
         timer_data = await get_timer()
     except Exception as e:
         logger.error(f"Error getting timer data: {e}")
         timer_data = {"timer": None}
-    
+
     return render(
         request, "dashboard.html", (ha_data | monitoring_data | timer_data | error_data)
     )
@@ -99,11 +99,11 @@ async def ha_info():
         "Authorization": f"Bearer {ha_access_token}",
         "Content-Type": "application/json",
     }
-    
+
     # Use custom timeout with more generous connect timeout
     limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
     timeout = httpx.Timeout(10.0, connect=10.0)
-    
+
     try:
         async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
             urls = [
@@ -113,7 +113,7 @@ async def ha_info():
                 ha_api_url + "/states/switch.security_light_switch_2",
                 ha_api_url + "/states/switch.fountain_switch_2",
             ]
-            
+
             # Individual requests with error handling instead of gather
             responses = []
             for url in urls:
@@ -122,32 +122,44 @@ async def ha_info():
                     responses.append(response)
                 except Exception as e:
                     logger.error(f"Failed to fetch {url}: {e}")
+
                     # Create a mock response
                     class MockResponse:
                         def json(self):
                             return {"state": "unknown"}
+
                     responses.append(MockResponse())
-            
+
             # Ensure we have exactly 5 responses
             while len(responses) < 5:
+
                 class MockResponse:
                     def json(self):
                         return {"state": "unknown"}
+
                 responses.append(MockResponse())
-            
+
             t_switch, h_switch, h_power, security_light, fountain = [
                 response.json()["state"] for response in responses
             ]
-            
+
             # Handle unknown states
             return {
-                "tidbyt_switch": convert_switch_state(t_switch) if t_switch != "unknown" else False,
-                "heat_switch": convert_switch_state(h_switch) if h_switch != "unknown" else False,
+                "tidbyt_switch": convert_switch_state(t_switch)
+                if t_switch != "unknown"
+                else False,
+                "heat_switch": convert_switch_state(h_switch)
+                if h_switch != "unknown"
+                else False,
                 "heat_power": h_power if h_power != "unknown" else "0",
-                "security_light_switch": convert_switch_state(security_light) if security_light != "unknown" else False,
-                "fountain_switch": convert_switch_state(fountain) if fountain != "unknown" else False,
+                "security_light_switch": convert_switch_state(security_light)
+                if security_light != "unknown"
+                else False,
+                "fountain_switch": convert_switch_state(fountain)
+                if fountain != "unknown"
+                else False,
             }
-    
+
     except Exception as e:
         logger.error(f"Error in ha_info: {e}")
         return {
@@ -189,7 +201,7 @@ def get_monitoring():
                     }
     except Exception as e:
         logger.error(f"Error in get_monitoring: {e}")
-    
+
     # Return default values if database connection fails
     return {
         "co2": "-- ppm",

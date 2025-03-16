@@ -4,3 +4,4 @@ dist/**
 .python-version
 render/**
 .env
+.venv

@@ -21,11 +21,11 @@ class Command(RichCommand):
         current_second = now.second
         second_offset = current_second % 15
         start_time = now - timedelta(seconds=second_offset)
-        
+
         frames = []
         radar = clock_radar(start_time)
         next(radar)  # Prime the generator
-        
+
         # Generate 15 seconds of animation (150 frames at 10 FPS)
         t = now.replace(microsecond=0)
         for _ in range(150):
