@@ -1,7 +1,6 @@
 import os
 import random
 from datetime import datetime, timedelta
-from itertools import islice
 from pushbyt.animation.rays2 import clock_rays
 from pushbyt.animation.radar import clock_radar
 from pushbyt.animation.song import song_info
@@ -172,7 +171,7 @@ def generate_timer(start_time, timer):
         logger.warning(
             f"Some timer animations were not created due to uniqueness constraints: {e}"
         )
-        return f"Partial creation of timer animations - some already existed"
+        return "Partial creation of timer animations - some already existed"
 
 
 def get_segment_start(start_time, *sources):
@@ -271,7 +270,7 @@ def generate_clock(start_time: datetime):
             f"Created {len(new_anims)} {source} starting at "
             + segment_start.strftime(" %-I:%M:%S")
         )
-    except django.db.utils.IntegrityError as e:
+    except django_db_utils.IntegrityError as e:
         # Log the error but don't crash
         logger.warning(
             f"Some animations were not created due to uniqueness constraints: {e}"
