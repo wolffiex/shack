@@ -71,7 +71,7 @@ class Animation(models.Model):
         while (t.second + s) % 60 not in seconds:
             s += 1
 
-        return t + timedelta(seconds=s)
+        return t.replace(microsecond=0, tzinfo=t.tzinfo) + timedelta(seconds=s)
 
     @staticmethod
     def next_time(t: datetime) -> datetime:
