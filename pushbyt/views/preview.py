@@ -49,7 +49,7 @@ def get_animation_list(now):
     return Animation.objects.filter(
         Q(served_at__gte=now - timedelta(minutes=1))
         | Q(start_time__isnull=True, served_at__isnull=True)
-        | Q(start_time__gt=now, start_time__lte=now + timedelta(seconds=30))
+        | Q(start_time__gt=now, start_time__lte=now + timedelta(seconds=15))
     ).order_by(
         F("served_at").asc(nulls_last=True),
         F("start_time").asc(nulls_first=True),

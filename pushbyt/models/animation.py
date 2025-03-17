@@ -44,9 +44,9 @@ class Animation(models.Model):
         if self.start_time:
             if self.start_time.microsecond != 0:
                 raise ValidationError("Start time milliseconds must be zero.")
-            if self.start_time.second not in [0, 15, 30, 45]:
+            if self.start_time.second not in [0, 10, 20, 30, 40, 50]:
                 raise ValidationError(
-                    "Start time seconds must be one of 0, 15, 30, or 45."
+                    "Start time seconds must be one of 0, 10, 20, 30, 40, or 50."
                 )
 
     def save(self, *args, **kwargs):
@@ -66,7 +66,7 @@ class Animation(models.Model):
 
     @staticmethod
     def align_time(t: datetime) -> datetime:
-        seconds = [0, 15, 30, 45]
+        seconds = [0, 10, 20, 30, 40, 50]
         s = 0
         while (t.second + s) % 60 not in seconds:
             s += 1

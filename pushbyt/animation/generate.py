@@ -8,6 +8,7 @@ from pushbyt.animation.song import song_info
 from pushbyt.animation.timer import timer as timer_frames
 from pathlib import Path
 from django.db.models import Max
+from django.db import utils as django_db_utils
 from django.utils import timezone
 from pushbyt.models import Animation
 from pushbyt.spotify import now_playing
@@ -17,6 +18,7 @@ import logging
 
 
 ANIM_DURATION = timedelta(seconds=15)
+ANIM_STEP = timedelta(seconds=10)  # Start a new animation every 10 seconds
 FRAME_COUNT = ANIM_DURATION // FRAME_TIME
 RENDER_DIR = Path("render")
 
@@ -89,35 +91,88 @@ def check_timer(start_time):
     return "\n".join(results)
 
 
+def generate_timer_frames(start_time, timer, duration):
+    """Generate a continuous sequence of timer frames."""
+    t = start_time
+    end_time = t + duration
+
+    # Calculate the time remaining from the start of our sequence
+    time_remaining_at_start = timer.created_at + timer.duration - t
+
+    # Generate all frames
+    all_frames = []
+    all_times = []
+
+    # Create a new generator that starts from our specific time point
+    frames = timer_frames(time_remaining_at_start)
+
+    while t < end_time:
+        try:
+            frame = next(frames)
+            all_frames.append(frame)
+            all_times.append(t)
+            t += FRAME_TIME
+        except StopIteration:
+            # Timer might end during the sequence
+            break
+
+    return all_frames, all_times
+
+
 def generate_timer(start_time, timer):
     segment_start = get_segment_start(start_time, Animation.Source.TIMER)
     if not segment_start:
         return "Already have timers"
-    t = segment_start
-    end_time = t + SEGMENT_TIME
-    frames = timer_frames(timer.created_at + timer.duration - segment_start)
+
+    # Generate frames for full segment plus buffer
+    duration = SEGMENT_TIME + ANIM_DURATION
+    all_frames, all_times = generate_timer_frames(segment_start, timer, duration)
+
+    # No frames were generated (timer might be too short)
+    if not all_frames:
+        return "No timer frames generated"
+
     animations = []
-    while t < end_time:
-        anim_frames = islice(frames, int(FRAME_COUNT))
-        important = timer.created_at + timer.duration - t < timedelta(seconds=90)
-        file_path = (
-            Path("render") / ("timer_" + t.strftime("%j-%H-%M-%S"))
-        ).with_suffix(".webp")
-        if not render(anim_frames, file_path):
-            break
-        animations.append(
-            Animation(
-                file_path=file_path,
-                start_time=t,
-                source=Animation.Source.TIMER,
-                metadata={"id": timer.pk, "important": important},
-            )
+    frames_per_anim = int(ANIM_DURATION.total_seconds() / FRAME_TIME.total_seconds())
+    frames_per_step = int(ANIM_STEP.total_seconds() / FRAME_TIME.total_seconds())
+
+    # Make sure we have enough frames for a complete animation
+    max_start_idx = len(all_frames) - frames_per_anim
+
+    for i in range(0, max_start_idx + 1, frames_per_step):
+        anim_frames = all_frames[i : i + frames_per_anim]
+        anim_start_time = all_times[i]
+
+        # Check if this timer is approaching completion (important)
+        important = timer.created_at + timer.duration - anim_start_time < timedelta(
+            seconds=90
         )
-        t += FRAME_COUNT * FRAME_TIME
-    new_anims = Animation.objects.bulk_create(animations)
-    return f"Created {len(new_anims)} timers starting at " + segment_start.strftime(
-        " %-I:%M:%S"
-    )
+
+        file_path = (
+            Path("render") / ("timer_" + anim_start_time.strftime("%j-%H-%M-%S"))
+        ).with_suffix(".webp")
+
+        if render(anim_frames, file_path):
+            animations.append(
+                Animation(
+                    file_path=file_path,
+                    start_time=anim_start_time,
+                    source=Animation.Source.TIMER,
+                    metadata={"id": timer.pk, "important": important},
+                )
+            )
+
+    try:
+        new_anims = Animation.objects.bulk_create(animations)
+        return f"Created {len(new_anims)} timers starting at " + segment_start.strftime(
+            " %-I:%M:%S"
+        )
+    except django_db_utils.IntegrityError as e:
+        # Log the error but don't crash
+        logger.warning(
+            f"Some timer animations were not created due to uniqueness constraints: {e}"
+        )
+        return f"Partial creation of timer animations - some already existed"
 
 
 def get_segment_start(start_time, *sources):
@@ -137,32 +192,51 @@ def get_segment_start(start_time, *sources):
 CLOCK_SOURCES = [Animation.Source.RAYS, Animation.Source.RADAR]
 
 
-def generate_clock(start_time: datetime):
-    segment_start = get_segment_start(start_time, *CLOCK_SOURCES)
-    if not segment_start:
-        return "Already have clock"
-
-    t = segment_start
-    end_time = t + SEGMENT_TIME
-
-    # Randomly choose between rays or radar
-    source = random.choice(CLOCK_SOURCES)
+def generate_clock_frames(start_time: datetime, duration: timedelta, source):
+    """Generate a continuous sequence of clock frames."""
+    t = start_time
+    end_time = t + duration
 
     # Choose the appropriate animation generator based on the selected source
-    frames = clock_radar(t) if source == Animation.Source.RADAR else clock_rays()
+    frames_generator = (
+        clock_radar(t) if source == Animation.Source.RADAR else clock_rays()
+    )
 
-    next(frames)
-    animations = []
+    # Start the generator
+    next(frames_generator)
+
+    # Generate all frames
+    all_frames = []
+    all_times = []
     while t < end_time:
-        anim_frames = []
-        anim_start_time = t
-        for _ in range(int(FRAME_COUNT)):
-            anim_frames.append(frames.send(t))
-            t += FRAME_TIME
+        all_frames.append(frames_generator.send(t))
+        all_times.append(t)
+        t += FRAME_TIME
+
+    return all_frames, all_times
+
+
+def slice_into_animations(
+    all_frames, all_times, source, anim_duration=ANIM_DURATION, step=ANIM_STEP
+):
+    """Slice frames into overlapping animations."""
+    frames_per_anim = int(anim_duration.total_seconds() / FRAME_TIME.total_seconds())
+    frames_per_step = int(step.total_seconds() / FRAME_TIME.total_seconds())
+
+    animations = []
+    # Make sure we have enough frames for a complete animation
+    max_start_idx = len(all_frames) - frames_per_anim
+
+    for i in range(0, max_start_idx + 1, frames_per_step):
+        anim_frames = all_frames[i : i + frames_per_anim]
+        anim_start_time = all_times[i]
+
         file_path = (
             Path("render") / (f"{source}_" + anim_start_time.strftime("%j-%H-%M-%S"))
         ).with_suffix(".webp")
+
         render(anim_frames, file_path)
+
         animations.append(
             Animation(
                 file_path=file_path,
@@ -170,10 +244,39 @@ def generate_clock(start_time: datetime):
                 source=source,
             )
         )
-    new_anims = Animation.objects.bulk_create(animations)
-    return f"Created {len(new_anims)} {source} starting at " + segment_start.strftime(
-        " %-I:%M:%S"
-    )
+
+    return animations
+
+
+def generate_clock(start_time: datetime):
+    segment_start = get_segment_start(start_time, *CLOCK_SOURCES)
+    if not segment_start:
+        return "Already have clock"
+
+    # Randomly choose between rays or radar
+    source = random.choice(CLOCK_SOURCES)
+
+    # Generate frames for 90 seconds plus buffer to ensure we have enough frames
+    # for the last complete animation
+    duration = SEGMENT_TIME + ANIM_DURATION
+    all_frames, all_times = generate_clock_frames(segment_start, duration, source)
+
+    # Slice into overlapping animations
+    animations = slice_into_animations(all_frames, all_times, source)
+
+    # Save to database - handle potential uniqueness constraint errors
+    try:
+        new_anims = Animation.objects.bulk_create(animations)
+        return (
+            f"Created {len(new_anims)} {source} starting at "
+            + segment_start.strftime(" %-I:%M:%S")
+        )
+    except django.db.utils.IntegrityError as e:
+        # Log the error but don't crash
+        logger.warning(
+            f"Some animations were not created due to uniqueness constraints: {e}"
+        )
+        return f"Partial creation of {source} animations - some already existed"
 
 
 def update_timer():
