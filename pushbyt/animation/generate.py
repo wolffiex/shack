@@ -175,17 +175,76 @@ def generate_timer(start_time, timer):
 
 
 def get_segment_start(start_time, *sources):
-    # For now, assume all animations are continuous.
-    # This is not a hard guarantee
-    max_start_time = Animation.objects.filter(
+    """
+    Determine the appropriate start time for a new animation segment based on existing coverage.
+
+    This function analyzes the current animation timeline and determines whether new
+    animations need to be generated, and if so, at what time they should start. It
+    implements a just-in-time generation strategy that:
+
+    1. Only generates new animations when we don't have sufficient future coverage
+    2. Ensures animations start at aligned time slots (0, 10, 20, 30, 40, or 50 seconds)
+    3. Prevents redundant generation when we already have animations extending into the future
+    4. Avoids gaps in the animation timeline for a smooth viewing experience
+    5. Respects the source types requested (e.g., RAYS, RADAR, TIMER)
+
+    The function first checks for the latest future animation matching the requested sources.
+    If this animation extends far enough into the future (SEGMENT_TIME = 90s), it returns None
+    indicating no new animations are needed. Otherwise, it calculates the appropriate next
+    time slot after the latest animation to ensure continuous coverage.
+
+    Args:
+        start_time: The base time to consider (usually aligned current time)
+        *sources: Animation source types to filter by (e.g., RAYS, RADAR)
+
+    Returns:
+        datetime: The time when the next animation segment should start
+        None: If we already have sufficient animation coverage into the future
+
+    This function is used by both generate_clock and generate_timer to coordinate
+    animation generation and prevent duplication while ensuring continuous playback.
+    """
+    now = timezone.now()
+
+    # Find the latest animation time for these sources, starting from start_time
+    future_max = Animation.objects.filter(
         start_time__gte=start_time, source__in=sources
     ).aggregate(max_start_time=Max("start_time"))["max_start_time"]
 
-    return (
-        Animation.next_time(max_start_time.astimezone(timezone.get_current_timezone()))
-        if max_start_time
-        else start_time
+    # If we don't have any future animations, start at the provided start_time
+    if not future_max:
+        logger.info(
+            f"No existing animations found, starting at {start_time.strftime('%-I:%M:%S')}"
+        )
+        return start_time
+
+    # Make sure time is timezone-aware
+    future_max = future_max.astimezone(timezone.get_current_timezone())
+
+    # Calculate how far our animations extend into the future
+    time_coverage = future_max - now
+
+    # If we already have enough future coverage, no need for more animations
+    if time_coverage >= SEGMENT_TIME:
+        logger.info(
+            f"Sufficient animations until {future_max.strftime('%-I:%M:%S')} "
+            + f"({time_coverage.total_seconds():.0f}s of coverage)"
+        )
+        return None
+
+    # Start generating new animations from the next time slot after the latest one
+    next_start = Animation.next_time(future_max)
+
+    # Ensure the next_start is after the max_future time
+    if next_start <= future_max:
+        next_start = future_max + timedelta(seconds=10)
+        next_start = Animation.align_time(next_start)
+
+    logger.info(
+        f"Generating animations from {next_start.strftime('%-I:%M:%S')} "
+        + f"to extend {time_coverage.total_seconds():.0f}s coverage"
     )
+    return next_start
 
 
 CLOCK_SOURCES = [Animation.Source.RAYS, Animation.Source.RADAR]
