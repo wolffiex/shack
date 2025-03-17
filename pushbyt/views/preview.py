@@ -49,7 +49,7 @@ def get_animation_list(now):
     return Animation.objects.filter(
         Q(served_at__gte=now - timedelta(minutes=1))
         | Q(start_time__isnull=True, served_at__isnull=True)
-        | Q(start_time__gt=now, start_time__lte=now + timedelta(seconds=15))
+        | Q(start_time__gt=now, start_time__lte=now + timedelta(seconds=30))
     ).order_by(
         F("served_at").asc(nulls_last=True),
         F("start_time").asc(nulls_first=True),
@@ -92,33 +92,90 @@ def is_important_and_soon(animation, now):
 
 
 def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
+    """
+    Compare two animations to determine priority order for display on the Tidbyt device.
+    
+    This is the core prioritization function that decides which animation should be displayed.
+    It implements a multi-level priority system with the following hierarchy:
+    
+    1. Doorbell animations (highest priority, real-time alerts)
+    2. Unserved real-time content (content without start_time that hasn't been shown yet)
+    3. Upcoming unserved timed animations (sorted by earliest start time)
+    4. All other animations, with various sub-priorities:
+       - Important and timely animations
+       - Animations not recently displayed
+       - Content type balancing (timers and clocks)
+       - Served animations (ordered by least recently shown)
+    
+    Args:
+        anim1: First animation to compare
+        anim2: Second animation to compare
+        summary: Dictionary containing context info like current time and recently served animations
+        
+    Returns:
+        -1 if anim1 should be displayed before anim2
+         1 if anim2 should be displayed before anim1
+         0 if they have equal priority (rare)
+    """
     def compare_by_predicate(pred):
         nonlocal anim1, anim2
         p1, p2 = pred(anim1), pred(anim2)
         return 0 if p1 == p2 else -1 if p1 else 1
 
+    now = summary["now"]
+    
+    # First level: doorbell has absolute priority
+    doorbell_1 = anim1.source == Animation.Source.DOORBELL
+    doorbell_2 = anim2.source == Animation.Source.DOORBELL
+    if doorbell_1 != doorbell_2:
+        return -1 if doorbell_1 else 1
+        
+    # Second level: unserved real-time content (no start_time)
+    unserved_realtime_1 = not is_served(anim1) and anim1.start_time is None
+    unserved_realtime_2 = not is_served(anim2) and anim2.start_time is None
+    if unserved_realtime_1 != unserved_realtime_2:
+        return -1 if unserved_realtime_1 else 1
+        
+    # Third level: upcoming unserved timed animations by earliest
+    unserved_upcoming_1 = not is_served(anim1) and anim1.start_time is not None
+    unserved_upcoming_2 = not is_served(anim2) and anim2.start_time is not None
+    if unserved_upcoming_1 and unserved_upcoming_2:
+        # Both are unserved and timed, so compare start times
+        return -1 if anim1.start_time < anim2.start_time else 1
+    # If only one is unserved and timed, prefer it
+    if unserved_upcoming_1 != unserved_upcoming_2:
+        return -1 if unserved_upcoming_1 else 1
+        
+    # For served animations, apply additional rules
     if is_served(anim1) and is_served(anim2):
-        return -1 if anim1.served_at > anim2.served_at else 1
+        # Check if either was served in the last 20 seconds
+        recently_served_1 = now - anim1.served_at < timedelta(seconds=20)
+        recently_served_2 = now - anim2.served_at < timedelta(seconds=20)
+        
+        # If one was recently served but the other wasn't, prefer the one that wasn't
+        if recently_served_1 != recently_served_2:
+            return 1 if recently_served_1 else -1
+            
+        # Otherwise, prefer the one that was served longer ago
+        return -1 if anim1.served_at < anim2.served_at else 1
 
+    # For the remaining cases, use additional criteria
     predicates = [
-        # unserved before served
-        lambda a: not is_served(a),
-        # doorbell before everything
-        lambda a: a.source == Animation.Source.DOORBELL,
         # metadata with important: True
-        lambda a: is_important_and_soon(a, summary["now"]),
-        # ephemeral content
-        lambda a: a.start_time is None,
+        lambda a: is_important_and_soon(a, now),
+        # avoid recently served animations
+        lambda a: not (is_served(a) and now - a.served_at < timedelta(seconds=20)),
     ]
 
     if anim1.start_time and anim2.start_time:
         min_start_time = min(anim1.start_time, anim2.start_time)
         predicates.append(lambda a: a.start_time == min_start_time)
-
+        
+    # Balance content types
     if not summary["last_timer"]:
         predicates.append(is_timer)
 
     if not summary["last_clock"]:
         predicates.append(is_clock)
-
+        
     return next(filter(lambda r: r != 0, map(compare_by_predicate, predicates)), 0)
