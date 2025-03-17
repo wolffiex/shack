@@ -96,26 +96,31 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
     Compare two animations to determine priority order for display on the Tidbyt device.
     
     This is the core prioritization function that decides which animation should be displayed.
-    It implements a multi-level priority system with the following hierarchy:
+    It implements a strict multi-level priority system with the following hierarchy:
     
-    1. Doorbell animations (highest priority, real-time alerts)
-    2. Unserved real-time content (content without start_time that hasn't been shown yet)
-    3. Upcoming unserved timed animations (sorted by earliest start time)
-    4. All other animations, with various sub-priorities:
-       - Important and timely animations
-       - Animations not recently displayed
-       - Content type balancing (timers and clocks)
-       - Served animations (ordered by least recently shown)
+    1. Doorbell animations (absolute highest priority, critical alerts)
+    2. Unserved real-time content (new content without a start_time that hasn't been shown yet)
+    3. Upcoming unserved timed animations (new scheduled content, sorted by earliest start time)
+    4. Most recently served animations (prioritizing animations with the most recent served_at time)
+       - This ensures animations maintain visibility and aren't interrupted prematurely
+       - Ensures consistent viewing experience when animations span multiple requests
+    5. For animations with equal priority at the levels above:
+       - Important animations (metadata with important=True)
+       - Earlier scheduled start times
+       - Content type balancing (timers and clocks are shown periodically)
+    
+    This priority system gives precedence to critical notifications and new content,
+    while ensuring already-displayed animations continue to be shown for proper visibility.
     
     Args:
         anim1: First animation to compare
         anim2: Second animation to compare
-        summary: Dictionary containing context info like current time and recently served animations
+        summary: Dictionary containing context info like current time and last shown content types
         
     Returns:
         -1 if anim1 should be displayed before anim2
          1 if anim2 should be displayed before anim1
-         0 if they have equal priority (rare)
+         0 if they have equal priority (extremely rare)
     """
     def compare_by_predicate(pred):
         nonlocal anim1, anim2
@@ -124,58 +129,52 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
 
     now = summary["now"]
     
-    # First level: doorbell has absolute priority
+    # Priority 1: Doorbell notifications (highest priority)
     doorbell_1 = anim1.source == Animation.Source.DOORBELL
     doorbell_2 = anim2.source == Animation.Source.DOORBELL
     if doorbell_1 != doorbell_2:
         return -1 if doorbell_1 else 1
         
-    # Second level: unserved real-time content (no start_time)
+    # Priority 2: New real-time content (unserved with no scheduled time)
     unserved_realtime_1 = not is_served(anim1) and anim1.start_time is None
     unserved_realtime_2 = not is_served(anim2) and anim2.start_time is None
     if unserved_realtime_1 != unserved_realtime_2:
         return -1 if unserved_realtime_1 else 1
         
-    # Third level: upcoming unserved timed animations by earliest
+    # Priority 3: New scheduled content (unserved with start_time)
     unserved_upcoming_1 = not is_served(anim1) and anim1.start_time is not None
     unserved_upcoming_2 = not is_served(anim2) and anim2.start_time is not None
     if unserved_upcoming_1 and unserved_upcoming_2:
-        # Both are unserved and timed, so compare start times
+        # Both are new scheduled content, so compare by earliest start time
         return -1 if anim1.start_time < anim2.start_time else 1
-    # If only one is unserved and timed, prefer it
+    # If only one is new scheduled content, prefer it
     if unserved_upcoming_1 != unserved_upcoming_2:
         return -1 if unserved_upcoming_1 else 1
         
-    # For served animations, apply additional rules
+    # Priority 4: Most recently served animations
     if is_served(anim1) and is_served(anim2):
-        # Check if either was served in the last 20 seconds
-        recently_served_1 = now - anim1.served_at < timedelta(seconds=20)
-        recently_served_2 = now - anim2.served_at < timedelta(seconds=20)
-        
-        # If one was recently served but the other wasn't, prefer the one that wasn't
-        if recently_served_1 != recently_served_2:
-            return 1 if recently_served_1 else -1
-            
-        # Otherwise, prefer the one that was served longer ago
-        return -1 if anim1.served_at < anim2.served_at else 1
+        # Prefer the most recently served animation for visibility consistency
+        return -1 if anim1.served_at > anim2.served_at else 1
 
-    # For the remaining cases, use additional criteria
+    # Priority 5: Additional criteria for edge cases and tie-breaking
     predicates = [
-        # metadata with important: True
+        # Priority 5a: Important animations (like final timer countdowns)
         lambda a: is_important_and_soon(a, now),
-        # avoid recently served animations
-        lambda a: not (is_served(a) and now - a.served_at < timedelta(seconds=20)),
     ]
 
+    # Priority 5b: Earlier scheduled start times when both have start times
     if anim1.start_time and anim2.start_time:
         min_start_time = min(anim1.start_time, anim2.start_time)
         predicates.append(lambda a: a.start_time == min_start_time)
         
-    # Balance content types
+    # Priority 5c: Content type balancing (ensure variety)
+    # Show timers if none shown recently
     if not summary["last_timer"]:
         predicates.append(is_timer)
 
+    # Show clocks if none shown recently
     if not summary["last_clock"]:
         predicates.append(is_clock)
         
+    # Apply predicates in order and return first non-zero result
     return next(filter(lambda r: r != 0, map(compare_by_predicate, predicates)), 0)
