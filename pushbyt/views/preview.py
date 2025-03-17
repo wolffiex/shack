@@ -30,8 +30,13 @@ def get_preview(_):
 
 
 def time_str(maybe_time):
-    maybe_timez = maybe_time and maybe_time.astimezone(timezone.get_current_timezone())
-    return maybe_timez and maybe_time.strftime(" %-I:%M:%S")
+    """Convert a datetime to a localized time string in current timezone."""
+    if not maybe_time:
+        return None
+    # Convert to current timezone
+    localized_time = maybe_time.astimezone(timezone.get_current_timezone())
+    # Format the localized time, not the original time
+    return localized_time.strftime(" %-I:%M:%S")
 
 
 def choose_anim(anims, now: datetime):
