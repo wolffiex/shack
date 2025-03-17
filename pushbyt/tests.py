@@ -13,8 +13,13 @@ class AnimationPrioritizationTestCase(TestCase):
         self.now = timezone.now()
         self.summary = {"now": self.now, "last_timer": None, "last_clock": None}
 
-    def create_animation(self, source=Animation.Source.STATIC, start_time=None, 
-                         served_at=None, metadata=None):
+    def create_animation(
+        self,
+        source=Animation.Source.STATIC,
+        start_time=None,
+        served_at=None,
+        metadata=None,
+    ):
         """Helper to create Animation objects for testing."""
         anim = Animation(
             source=source,
@@ -29,34 +34,34 @@ class AnimationPrioritizationTestCase(TestCase):
         # Create a doorbell animation and a regular animation
         doorbell = self.create_animation(source=Animation.Source.DOORBELL)
         regular = self.create_animation(source=Animation.Source.STATIC)
-        
+
         # Doorbell should be higher priority than any other animation
         self.assertEqual(compare_animations(doorbell, regular, self.summary), -1)
         self.assertEqual(compare_animations(regular, doorbell, self.summary), 1)
-        
+
         # Even if the other animation is unserved with no start_time
         unserved_realtime = self.create_animation(source=Animation.Source.STATIC)
-        self.assertEqual(compare_animations(doorbell, unserved_realtime, self.summary), -1)
+        self.assertEqual(
+            compare_animations(doorbell, unserved_realtime, self.summary), -1
+        )
 
     def test_unserved_realtime_priority(self):
         """Test that unserved real-time content has priority after doorbell."""
         # Create an unserved real-time animation and a served animation
         unserved = self.create_animation(source=Animation.Source.STATIC)
         served = self.create_animation(
-            source=Animation.Source.STATIC, 
-            served_at=self.now - timedelta(seconds=30)
+            source=Animation.Source.STATIC, served_at=self.now - timedelta(seconds=30)
         )
-        
+
         # Unserved should be higher priority
         self.assertEqual(compare_animations(unserved, served, self.summary), -1)
         self.assertEqual(compare_animations(served, unserved, self.summary), 1)
-        
+
         # Create an unserved animation with a start_time (timed)
         unserved_timed = self.create_animation(
-            source=Animation.Source.RAYS,
-            start_time=self.now + timedelta(seconds=10)
+            source=Animation.Source.RAYS, start_time=self.now + timedelta(seconds=10)
         )
-        
+
         # Unserved real-time should be higher priority than unserved timed
         self.assertEqual(compare_animations(unserved, unserved_timed, self.summary), -1)
         self.assertEqual(compare_animations(unserved_timed, unserved, self.summary), 1)
@@ -65,90 +70,82 @@ class AnimationPrioritizationTestCase(TestCase):
         """Test that unserved timed animations are prioritized by start time."""
         # Create two unserved timed animations with different start times
         earlier = self.create_animation(
-            source=Animation.Source.RAYS,
-            start_time=self.now + timedelta(seconds=5)
+            source=Animation.Source.RAYS, start_time=self.now + timedelta(seconds=5)
         )
         later = self.create_animation(
-            source=Animation.Source.RADAR,
-            start_time=self.now + timedelta(seconds=15)
+            source=Animation.Source.RADAR, start_time=self.now + timedelta(seconds=15)
         )
-        
+
         # Earlier start time should be higher priority
         self.assertEqual(compare_animations(earlier, later, self.summary), -1)
         self.assertEqual(compare_animations(later, earlier, self.summary), 1)
-        
+
         # Unserved timed should be higher priority than served animations
         served = self.create_animation(
-            source=Animation.Source.STATIC, 
-            served_at=self.now - timedelta(seconds=30)
+            source=Animation.Source.STATIC, served_at=self.now - timedelta(seconds=30)
         )
         self.assertEqual(compare_animations(earlier, served, self.summary), -1)
         self.assertEqual(compare_animations(served, earlier, self.summary), 1)
 
     def test_served_priority(self):
         """Test priorities for animations that have been served."""
-        # Create two served animations, one served very recently
+        # Create two served animations with different served times
         recent = self.create_animation(
-            source=Animation.Source.STATIC,
-            served_at=self.now - timedelta(seconds=10)
+            source=Animation.Source.STATIC, served_at=self.now - timedelta(seconds=10)
         )
         older = self.create_animation(
-            source=Animation.Source.STATIC,
-            served_at=self.now - timedelta(seconds=40)
+            source=Animation.Source.STATIC, served_at=self.now - timedelta(seconds=40)
         )
-        
-        # Animation served less recently should have higher priority
-        self.assertEqual(compare_animations(older, recent, self.summary), -1)
-        self.assertEqual(compare_animations(recent, older, self.summary), 1)
-        
+
+        # Most recently served should have higher priority
+        self.assertEqual(compare_animations(recent, older, self.summary), -1)
+        self.assertEqual(compare_animations(older, recent, self.summary), 1)
+
         # Create an animation with important metadata
         important = self.create_animation(
             source=Animation.Source.TIMER,
             served_at=self.now - timedelta(seconds=30),
             start_time=self.now - timedelta(seconds=10),
-            metadata={"important": True}
+            metadata={"important": True},
         )
-        
-        # For served animations with importance, the behavior depends on the implementation details
-        # In our current implementation, the important flag doesn't always override recency
-        # for served animations, but it's a factor in the predicates list
-        # This test validates the current behavior, which may evolve in future versions
-        compare_animations(important, older, self.summary)
+
+        # Even with important flag, recency of served_at is the primary factor for served animations
+        # So the more recently served animation should win
+        self.assertEqual(compare_animations(recent, important, self.summary), -1)
+        self.assertEqual(compare_animations(important, older, self.summary), -1)
 
     def test_content_type_balancing(self):
         """Test that content type balancing works correctly."""
-        # In our new priority system, content type balancing is a lower priority 
+        # In our new priority system, content type balancing is a lower priority
         # factor that only applies when other factors are equal
-        
-        # Create unserved timer and clock animations to test the content balancing in isolation
+
+        # Create unserved timer and clock animations with identical start times
         timer = self.create_animation(
-            source=Animation.Source.TIMER,
-            start_time=self.now + timedelta(seconds=30)
+            source=Animation.Source.TIMER, start_time=self.now + timedelta(seconds=30)
         )
         clock = self.create_animation(
             source=Animation.Source.RAYS,
-            start_time=self.now + timedelta(seconds=30)  # Same start time
+            start_time=self.now + timedelta(seconds=30),  # Same start time
         )
-        
+
         # With both being equal priority otherwise, and no last_timer shown,
         # timer should be preferred
         self.summary["last_timer"] = None
         self.summary["last_clock"] = clock  # We've shown a clock recently
         result = compare_animations(timer, clock, self.summary)
-        
-        # In our implementation, earliest start_time takes precedence over content type
-        # When start times are identical, other factors like content type come into play
-        # This test validates the current behavior, which may evolve
-        
-        # Create served animations where recency is the primary factor
+
+        # Content type balancing only applies for animations with otherwise equal priority
+
+        # Create served animations with different served_at times
         served_timer = self.create_animation(
-            source=Animation.Source.TIMER,
-            served_at=self.now - timedelta(seconds=50)
+            source=Animation.Source.TIMER, served_at=self.now - timedelta(seconds=50)
         )
         served_clock = self.create_animation(
             source=Animation.Source.RADAR,
-            served_at=self.now - timedelta(seconds=10)  # More recently served
+            served_at=self.now - timedelta(seconds=10),  # More recently served
         )
-        
-        # The less recently served should be higher priority
-        self.assertEqual(compare_animations(served_timer, served_clock, self.summary), -1)
+
+        # The most recently served should have higher priority, regardless of content type
+        self.assertEqual(
+            compare_animations(served_clock, served_timer, self.summary), -1
+        )
