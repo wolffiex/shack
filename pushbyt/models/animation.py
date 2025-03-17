@@ -66,21 +66,16 @@ class Animation(models.Model):
 
     @staticmethod
     def align_time(t: datetime) -> datetime:
-        second = t.second
-        if 0 <= second < 15:
-            r_second = 0
-        elif 15 <= second < 30:
-            r_second = 15
-        elif 30 <= second < 45:
-            r_second = 30
-        else:
-            r_second = 45
+        seconds = [0, 15, 30, 45]
+        s = 0
+        while (t.second + s) % 60 not in seconds:
+            s += 1
 
-        return t.replace(second=r_second, microsecond=0, tzinfo=t.tzinfo)
+        return t + timedelta(seconds=s)
 
     @staticmethod
     def next_time(t: datetime) -> datetime:
-        return Animation.align_time(t) + timedelta(seconds=15)
+        return Animation.align_time(t)
 
     @property
     def url(self):
