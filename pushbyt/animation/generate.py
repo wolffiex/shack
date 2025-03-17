@@ -17,7 +17,7 @@ import logging
 
 
 ANIM_DURATION = timedelta(seconds=15)
-ANIM_STEP = timedelta(seconds=10)  # Start a new animation every 10 seconds
+ANIM_STEP = timedelta(seconds=12)  # Start a new animation every 12 seconds
 FRAME_COUNT = ANIM_DURATION // FRAME_TIME
 RENDER_DIR = Path("render")
 

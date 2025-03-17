@@ -44,9 +44,9 @@ class Animation(models.Model):
         if self.start_time:
             if self.start_time.microsecond != 0:
                 raise ValidationError("Start time milliseconds must be zero.")
-            if self.start_time.second not in [0, 10, 20, 30, 40, 50]:
+            if self.start_time.second not in [0, 12, 24, 36, 48]:
                 raise ValidationError(
-                    "Start time seconds must be one of 0, 10, 20, 30, 40, or 50."
+                    "Start time seconds must be one of 0, 12, 24, 36, or 48."
                 )
 
     def save(self, *args, **kwargs):
@@ -66,7 +66,13 @@ class Animation(models.Model):
 
     @staticmethod
     def align_time(t: datetime) -> datetime:
-        seconds = [0, 10, 20, 30, 40, 50]
+        """
+        Align a datetime to the nearest 12-second boundary (0, 12, 24, 36, 48).
+
+        This aligns with the device polling interval of ~12 seconds, ensuring
+        smooth animation transitions.
+        """
+        seconds = [0, 12, 24, 36, 48]
         s = 0
         while (t.second + s) % 60 not in seconds:
             s += 1
