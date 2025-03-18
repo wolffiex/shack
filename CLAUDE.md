@@ -6,11 +6,12 @@
 - Run specific test module: `python manage.py test pushbyt.test.test_generate`
 - Run specific test class: `python manage.py test pushbyt.test.test_generate.GenerationTestCase`
 - Run specific test method: `python manage.py test pushbyt.test.test_generate.GenerationTestCase.test_get_segment_start_no_animations`
-- Type check: `mypy .`  
 - Lint code: `ruff check .`
 - Fix lint issues: `ruff check --fix .`
 - Format code: `ruff format`
 - Clear animation data: `python manage.py shell -c "from django.db import connection; cursor = connection.cursor(); cursor.execute('DELETE FROM pushbyt_animation'); print('Animations cleared')"`
+
+Note: This project does not use mypy for type checking despite having type annotations in the code.
 
 ## Style Guide
 - Type annotations: Use typing for function parameters and return values

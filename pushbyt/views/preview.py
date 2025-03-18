@@ -42,12 +42,28 @@ def time_str(maybe_time):
 def choose_anim(anims, now: datetime):
     logger.info(f"Choose anim at {time_str(now)} from list of {len(anims)}")
     summary = summarize_anims(anims, now)
-    anims.sort(key=cmp_to_key(partial(compare_animations, summary=summary)))
-    for anim in anims:
+
+    # Filter out timer animations that have already been served
+    # This prevents the same timer from being displayed multiple times
+    filtered_anims = [
+        a
+        for a in anims
+        if not (a.source == Animation.Source.TIMER and a.served_at is not None)
+    ]
+
+    # If we filtered everything out (e.g., only timer animations that were already served),
+    # fall back to original list - but this should be rare
+    if not filtered_anims:
+        logger.warning("All animations filtered out, using original list as fallback")
+        filtered_anims = anims
+
+    filtered_anims.sort(key=cmp_to_key(partial(compare_animations, summary=summary)))
+    for anim in filtered_anims:
         sa = time_str(anim.served_at)
         st = time_str(anim.start_time)
         logger.info(f"A {anim.source} {anim.pk} {sa} {st} {anim.metadata}")
-    return anims[0]
+
+    return filtered_anims[0]
 
 
 def get_animation_list(now):
@@ -117,6 +133,9 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
     This priority system gives precedence to critical notifications and new content,
     while ensuring already-displayed animations continue to be shown for proper visibility.
 
+    Note: Timer animations that have already been served are filtered out before reaching
+    this comparison function to prevent showing the same timer multiple times.
+
     Args:
         anim1: First animation to compare
         anim2: Second animation to compare
@@ -152,25 +171,25 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
     important2 = is_important_and_soon(anim2, now)
     if important1 != important2:
         return -1 if important1 else 1
-    
+
     # Priority 3: New scheduled content (unserved with start_time)
     unserved_upcoming_1 = not is_served(anim1) and anim1.start_time is not None
     unserved_upcoming_2 = not is_served(anim2) and anim2.start_time is not None
-    
+
     # Check for unserved timer animations - prioritize timers if we haven't shown one recently
     if unserved_upcoming_1 and unserved_upcoming_2:
         # Both are unserved scheduled animations
         timer1 = is_timer(anim1)
         timer2 = is_timer(anim2)
-        
+
         # If one is a timer and the other isn't, and we haven't shown a timer recently,
         # prioritize the timer animation
         if timer1 != timer2 and not summary.get("last_timer"):
             return -1 if timer1 else 1
-            
+
         # Both are new scheduled content, so compare by earliest start time
         return -1 if anim1.start_time < anim2.start_time else 1
-    
+
     # If only one is new scheduled content, prefer it
     if unserved_upcoming_1 != unserved_upcoming_2:
         return -1 if unserved_upcoming_1 else 1
