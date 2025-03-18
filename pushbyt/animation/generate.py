@@ -121,7 +121,10 @@ def generate_timer_frames(start_time, timer, duration):
 def generate_timer(start_time, timer):
     segment_start = get_segment_start(start_time, Animation.Source.TIMER)
     if not segment_start:
+        logger.info("Timer animations: Sufficient future coverage exists")
         return "Already have timers"
+        
+    logger.info(f"Generating TIMER animations starting at {segment_start.strftime('%-I:%M:%S')}")
 
     # Generate frames for full segment plus buffer
     duration = SEGMENT_TIME + ANIM_DURATION
@@ -240,8 +243,9 @@ def get_segment_start(start_time, *sources):
         next_start = future_max + timedelta(seconds=10)
         next_start = Animation.align_time(next_start)
 
-    logger.info(
-        f"Generating animations from {next_start.strftime('%-I:%M:%S')} "
+    source_types = ', '.join([src.value for src in sources])
+    logger.debug(
+        f"Planning {source_types} animations from {next_start.strftime('%-I:%M:%S')} "
         + f"to extend {time_coverage.total_seconds():.0f}s coverage"
     )
     return next_start
@@ -309,10 +313,12 @@ def slice_into_animations(
 def generate_clock(start_time: datetime):
     segment_start = get_segment_start(start_time, *CLOCK_SOURCES)
     if not segment_start:
+        logger.info("Clock animations: Sufficient future coverage exists")
         return "Already have clock"
-
+        
     # Randomly choose between rays or radar
     source = random.choice(CLOCK_SOURCES)
+    logger.info(f"Generating {source.value} animations starting at {segment_start.strftime('%-I:%M:%S')}")
 
     # Generate frames for 90 seconds plus buffer to ensure we have enough frames
     # for the last complete animation
