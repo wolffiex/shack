@@ -147,12 +147,30 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
     if unserved_realtime_1 != unserved_realtime_2:
         return -1 if unserved_realtime_1 else 1
 
+    # Check for important timer animations first
+    important1 = is_important_and_soon(anim1, now)
+    important2 = is_important_and_soon(anim2, now)
+    if important1 != important2:
+        return -1 if important1 else 1
+    
     # Priority 3: New scheduled content (unserved with start_time)
     unserved_upcoming_1 = not is_served(anim1) and anim1.start_time is not None
     unserved_upcoming_2 = not is_served(anim2) and anim2.start_time is not None
+    
+    # Check for unserved timer animations - prioritize timers if we haven't shown one recently
     if unserved_upcoming_1 and unserved_upcoming_2:
+        # Both are unserved scheduled animations
+        timer1 = is_timer(anim1)
+        timer2 = is_timer(anim2)
+        
+        # If one is a timer and the other isn't, and we haven't shown a timer recently,
+        # prioritize the timer animation
+        if timer1 != timer2 and not summary.get("last_timer"):
+            return -1 if timer1 else 1
+            
         # Both are new scheduled content, so compare by earliest start time
         return -1 if anim1.start_time < anim2.start_time else 1
+    
     # If only one is new scheduled content, prefer it
     if unserved_upcoming_1 != unserved_upcoming_2:
         return -1 if unserved_upcoming_1 else 1
@@ -165,6 +183,7 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
     # Priority 5: Additional criteria for edge cases and tie-breaking
     predicates = [
         # Priority 5a: Important animations (like final timer countdowns)
+        # These should have higher priority regardless of content balancing
         lambda a: is_important_and_soon(a, now),
     ]
 
