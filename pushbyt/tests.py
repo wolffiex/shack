@@ -149,68 +149,69 @@ class AnimationPrioritizationTestCase(TestCase):
         self.assertEqual(
             compare_animations(served_clock, served_timer, self.summary), -1
         )
-        
+
     def test_timer_prioritization(self):
         """Test that timer animations are properly prioritized."""
         # Create a bunch of animations for testing
         animations = [
             # Create a doorbell (highest priority)
             self.create_animation(source=Animation.Source.DOORBELL),
-            
             # Create an unserved realtime animation (second priority)
             self.create_animation(source=Animation.Source.STATIC),
-            
             # Create an unserved timed animation (third priority)
             self.create_animation(
-                source=Animation.Source.RAYS, start_time=self.now + timedelta(seconds=10)
+                source=Animation.Source.RAYS,
+                start_time=self.now + timedelta(seconds=10),
             ),
-            
             # Create an unserved timer animation (should be properly prioritized)
             self.create_animation(
-                source=Animation.Source.TIMER, start_time=self.now + timedelta(seconds=12)
+                source=Animation.Source.TIMER,
+                start_time=self.now + timedelta(seconds=12),
             ),
-            
             # Create a recently served animation (fourth priority)
             self.create_animation(
-                source=Animation.Source.STATIC, served_at=self.now - timedelta(seconds=5)
+                source=Animation.Source.STATIC,
+                served_at=self.now - timedelta(seconds=5),
             ),
-            
             # Create a less recently served animation
             self.create_animation(
-                source=Animation.Source.STATIC, served_at=self.now - timedelta(seconds=30)
+                source=Animation.Source.STATIC,
+                served_at=self.now - timedelta(seconds=30),
             ),
         ]
-        
+
         # Test with no timer shown recently
         self.summary["last_timer"] = None
-        
+
         # Generate a summary based on our list of animations
         summary = summarize_anims(animations, self.now)
-        
+
         # Get the unserved timer and unserved RAYS animation
         unserved_timer = animations[3]  # Index 3 is our unserved timer
-        unserved_rays = animations[2]   # Index 2 is our unserved rays
-        
+        unserved_rays = animations[2]  # Index 2 is our unserved rays
+
         # Verify the timer animation gets prioritized over the rays animation
         # when no timer has been seen recently
         self.assertEqual(compare_animations(unserved_timer, unserved_rays, summary), -1)
-        
+
         # Now test with a timer recently shown
         recent_timer = self.create_animation(
             source=Animation.Source.TIMER, served_at=self.now - timedelta(seconds=10)
         )
         summary["last_timer"] = recent_timer
-        
+
         # With a timer recently shown, the unserved rays should now win
         # over the unserved timer because we want content variety
         self.assertEqual(compare_animations(unserved_timer, unserved_rays, summary), 1)
-        
+
         # Create a timer with important=True flag that's starting soon (within 15 seconds)
         important_timer = self.create_animation(
-            source=Animation.Source.TIMER, 
+            source=Animation.Source.TIMER,
             start_time=self.now + timedelta(seconds=10),  # Within 15 seconds
-            metadata={"important": True}
+            metadata={"important": True},
         )
-        
+
         # Important timers that are starting soon should win even if a timer was recently shown
-        self.assertEqual(compare_animations(important_timer, unserved_rays, summary), -1)
+        self.assertEqual(
+            compare_animations(important_timer, unserved_rays, summary), -1
+        )

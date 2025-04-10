@@ -43,12 +43,18 @@ def choose_anim(anims, now: datetime):
     logger.info(f"Choose anim at {time_str(now)} from list of {len(anims)}")
     summary = summarize_anims(anims, now)
 
-    # Filter out timer animations that have already been served
-    # This prevents the same timer from being displayed multiple times
+    # Filter out timer and doorbell animations that have already been served
+    # This prevents the same timer or doorbell from being displayed multiple times
     filtered_anims = [
         a
         for a in anims
-        if not (a.source == Animation.Source.TIMER and a.served_at is not None)
+        if not (
+            (
+                a.source == Animation.Source.TIMER
+                or a.source == Animation.Source.DOORBELL
+            )
+            and a.served_at is not None
+        )
     ]
 
     # If we filtered everything out (e.g., only timer animations that were already served),
@@ -133,8 +139,9 @@ def compare_animations(anim1: Animation, anim2: Animation, summary) -> int:
     This priority system gives precedence to critical notifications and new content,
     while ensuring already-displayed animations continue to be shown for proper visibility.
 
-    Note: Timer animations that have already been served are filtered out before reaching
-    this comparison function to prevent showing the same timer multiple times.
+    Note: Timer and doorbell animations that have already been served are filtered out
+    before reaching this comparison function to prevent showing the same timer or doorbell
+    notification multiple times.
 
     Args:
         anim1: First animation to compare
