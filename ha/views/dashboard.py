@@ -23,6 +23,7 @@ CONTROLS = {
     "heat_power": ("/services/script", "script.shack_space_heater_power_on"),
     "security_light_switch": ("/services/switch", "switch.security_light_switch_2"),
     "fountain_switch": ("/services/switch", "switch.fountain_switch_2"),
+    "fan_switch": ("/services/switch", "switch.fan_switch_2"),
 }
 
 
@@ -112,6 +113,7 @@ async def ha_info():
                 ha_api_url + "/states/sensor.space_heater_power_2",
                 ha_api_url + "/states/switch.security_light_switch_2",
                 ha_api_url + "/states/switch.fountain_switch_2",
+                ha_api_url + "/states/switch.fan_switch_2",
             ]
 
             # Individual requests with error handling instead of gather
@@ -130,8 +132,7 @@ async def ha_info():
 
                     responses.append(MockResponse())
 
-            # Ensure we have exactly 5 responses
-            while len(responses) < 5:
+            while len(responses) < 6:
 
                 class MockResponse:
                     def json(self):
@@ -139,7 +140,7 @@ async def ha_info():
 
                 responses.append(MockResponse())
 
-            t_switch, h_switch, h_power, security_light, fountain = [
+            t_switch, h_switch, h_power, security_light, fountain, fan = [
                 response.json()["state"] for response in responses
             ]
 
@@ -157,6 +158,9 @@ async def ha_info():
                 else False,
                 "fountain_switch": convert_switch_state(fountain)
                 if fountain != "unknown"
+                else False,
+                "fan_switch": convert_switch_state(fan)
+                if fan != "unknown"
                 else False,
             }
 
