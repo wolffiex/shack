@@ -139,6 +139,16 @@
         </a>
       </div>
       <div>
+        <a href="{% url 'control' name='shack_inside'%}?action={% if shack_inside %}turn_off{% else %}turn_on{% endif %}">
+          <span>{% if shack_inside %}✅{% else %}❌{% endif %}</span> Interior light
+        </a>
+      </div>
+      <div>
+        <a href="{% url 'control' name='shack_outside'%}?action={% if shack_outside %}turn_off{% else %}turn_on{% endif %}">
+          <span>{% if shack_outside %}✅{% else %}❌{% endif %}</span> Exterior light
+        </a>
+      </div>
+      <div>
         <a href="{% url 'control' name='heat_switch'%}?action={% if heat_switch %}turn_off{% else %}turn_on{% endif %}">
           <span>{% if heat_switch %}✅{% else %}❌{% endif %}</span> Heat switch
         </a>

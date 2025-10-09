@@ -24,6 +24,8 @@ CONTROLS = {
     "security_light_switch": ("/services/switch", "switch.security_light_switch_2"),
     "fountain_switch": ("/services/switch", "switch.fountain_switch_2"),
     "fan_switch": ("/services/switch", "switch.fan_switch_2"),
+    "shack_inside": ("/services/light", "light.interior_light"),
+    "shack_outside": ("/services/light", "light.exterior_light_2"),
 }
 
 
@@ -63,6 +65,9 @@ async def dashboard(request):
             "heat_power": "unavailable",
             "security_light_switch": False,
             "fountain_switch": False,
+            "fan_switch": False,
+            "shack_inside": False,
+            "shack_outside": False,
         }
 
     try:
@@ -114,6 +119,8 @@ async def ha_info():
                 ha_api_url + "/states/switch.security_light_switch_2",
                 ha_api_url + "/states/switch.fountain_switch_2",
                 ha_api_url + "/states/switch.fan_switch_2",
+                ha_api_url + "/states/light.interior_light",
+                ha_api_url + "/states/light.exterior_light_2",
             ]
 
             # Individual requests with error handling instead of gather
@@ -132,7 +139,9 @@ async def ha_info():
 
                     responses.append(MockResponse())
 
-            while len(responses) < 6:
+            expected_responses = len(urls)
+
+            while len(responses) < expected_responses:
 
                 class MockResponse:
                     def json(self):
@@ -140,7 +149,16 @@ async def ha_info():
 
                 responses.append(MockResponse())
 
-            t_switch, h_switch, h_power, security_light, fountain, fan = [
+            (
+                t_switch,
+                h_switch,
+                h_power,
+                security_light,
+                fountain,
+                fan,
+                shack_inside,
+                shack_outside,
+            ) = [
                 response.json()["state"] for response in responses
             ]
 
@@ -162,6 +180,12 @@ async def ha_info():
                 "fan_switch": convert_switch_state(fan)
                 if fan != "unknown"
                 else False,
+                "shack_inside": convert_switch_state(shack_inside)
+                if shack_inside != "unknown"
+                else False,
+                "shack_outside": convert_switch_state(shack_outside)
+                if shack_outside != "unknown"
+                else False,
             }
 
     except Exception as e:
@@ -172,6 +196,9 @@ async def ha_info():
             "heat_power": "0",
             "security_light_switch": False,
             "fountain_switch": False,
+            "fan_switch": False,
+            "shack_inside": False,
+            "shack_outside": False,
         }
 
 
