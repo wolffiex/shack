@@ -2,7 +2,6 @@ from django_rich.management import RichCommand
 from pushbyt.animation import clock_radar
 from pushbyt.animation import FRAME_TIME, render
 from pathlib import Path
-from itertools import islice
 from datetime import datetime, timedelta
 
 

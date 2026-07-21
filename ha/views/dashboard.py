@@ -11,7 +11,6 @@ from settings import HA_HOST
 import logging
 import psycopg2
 import httpx
-import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -158,9 +157,7 @@ async def ha_info():
                 fan,
                 shack_inside,
                 shack_outside,
-            ) = [
-                response.json()["state"] for response in responses
-            ]
+            ) = [response.json()["state"] for response in responses]
 
             # Handle unknown states
             return {
@@ -177,9 +174,7 @@ async def ha_info():
                 "fountain_switch": convert_switch_state(fountain)
                 if fountain != "unknown"
                 else False,
-                "fan_switch": convert_switch_state(fan)
-                if fan != "unknown"
-                else False,
+                "fan_switch": convert_switch_state(fan) if fan != "unknown" else False,
                 "shack_inside": convert_switch_state(shack_inside)
                 if shack_inside != "unknown"
                 else False,

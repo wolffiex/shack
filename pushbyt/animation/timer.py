@@ -1,5 +1,5 @@
-from PIL import Image, ImageDraw, ImageFont, ImageChops
-from typing import Generator, Optional
+from PIL import Image, ImageDraw, ImageFont
+from typing import Generator
 import logging
 from datetime import timedelta
 from pushbyt.animation.util import FRAME_TIME

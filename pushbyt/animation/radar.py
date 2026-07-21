@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from typing import Tuple, Generator
 from collections import defaultdict
 
-from PIL import Image, ImageDraw, ImageFont, ImageChops
+from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime, timedelta
-from pushbyt.animation import FRAME_TIME
 
 
 WIDTH, HEIGHT = 64, 32

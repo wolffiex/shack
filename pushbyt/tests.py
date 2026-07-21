@@ -1,10 +1,9 @@
 from django.test import TestCase
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pushbyt.models import Animation
 from pushbyt.views.preview import (
     compare_animations,
-    is_served,
     summarize_anims,
     get_animation_list,
 )
@@ -137,7 +136,7 @@ class AnimationPrioritizationTestCase(TestCase):
         # timer should be preferred
         self.summary["last_timer"] = None
         self.summary["last_clock"] = clock  # We've shown a clock recently
-        result = compare_animations(timer, clock, self.summary)
+        compare_animations(timer, clock, self.summary)
 
         # Content type balancing only applies for animations with otherwise equal priority
 

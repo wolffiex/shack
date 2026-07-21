@@ -1,7 +1,6 @@
 from django_rich.management import RichCommand
 from pushbyt.animation.song import song_info
 from rich.table import Table
-from pushbyt.spotify import now_playing
 from pushbyt.animation import render
 from pathlib import Path
 

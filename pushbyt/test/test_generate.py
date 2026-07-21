@@ -1,8 +1,8 @@
 from django.test import TestCase
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pushbyt.models import Animation
-from pushbyt.animation.generate import get_segment_start, SEGMENT_TIME
+from pushbyt.animation.generate import get_segment_start
 import logging
 
 # Disable logging during tests

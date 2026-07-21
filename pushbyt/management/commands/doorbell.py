@@ -2,7 +2,6 @@ from django_rich.management import RichCommand
 from pushbyt.animation import render
 from pathlib import Path
 from PIL import Image
-from pushbyt.views.doorbell import DOORBELL_PATH
 
 
 WIDTH, HEIGHT = 64, 32
