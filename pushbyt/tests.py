@@ -2,7 +2,12 @@ from django.test import TestCase
 from django.utils import timezone
 from datetime import datetime, timedelta
 from pushbyt.models import Animation
-from pushbyt.views.preview import compare_animations, is_served, summarize_anims
+from pushbyt.views.preview import (
+    compare_animations,
+    is_served,
+    summarize_anims,
+    get_animation_list,
+)
 
 
 class AnimationPrioritizationTestCase(TestCase):
@@ -214,4 +219,77 @@ class AnimationPrioritizationTestCase(TestCase):
         # Important timers that are starting soon should win even if a timer was recently shown
         self.assertEqual(
             compare_animations(important_timer, unserved_rays, summary), -1
+        )
+
+    def test_doorbell_infinite_loop_bug(self):
+        """Test that served doorbell/timer animations don't cause infinite loops."""
+        now = timezone.now()
+
+        # Create a doorbell that was served 30 seconds ago (within 1 minute window)
+        doorbell = Animation.objects.create(
+            source=Animation.Source.DOORBELL,
+            file_path="doorbell.webp",
+            served_at=now - timedelta(seconds=30),
+            metadata={},
+        )
+
+        # Create a timer that was served 30 seconds ago
+        # Align to 12-second intervals (0, 12, 24, 36, 48)
+        past_time = now.replace(second=0, microsecond=0) - timedelta(seconds=24)
+        timer = Animation.objects.create(
+            source=Animation.Source.TIMER,
+            file_path="timer.webp",
+            served_at=now - timedelta(seconds=30),
+            start_time=past_time,
+            metadata={},
+        )
+
+        # Create some future animations
+        # Align to 12-second intervals, within 30-second window
+        seconds_until_next = 12 - (now.second % 12)
+        if seconds_until_next == 0:
+            seconds_until_next = 12
+        future_time = (now + timedelta(seconds=seconds_until_next)).replace(
+            microsecond=0
+        )
+        future_anim = Animation.objects.create(
+            source=Animation.Source.RAYS,
+            file_path="rays.webp",
+            start_time=future_time,
+            metadata={},
+        )
+
+        # Get the animation list
+        anims = get_animation_list(now)
+
+        # The doorbell and timer should NOT be in the list because they were already served
+        # and have no upcoming start_time
+        anim_ids = [a.id for a in anims]
+        self.assertNotIn(
+            doorbell.id,
+            anim_ids,
+            "Served doorbell should not be in animation list (prevents infinite loop)",
+        )
+        self.assertNotIn(
+            timer.id,
+            anim_ids,
+            "Served timer should not be in animation list (prevents infinite loop)",
+        )
+
+        # The future animation should be in the list
+        self.assertIn(future_anim.id, anim_ids)
+
+        # Now test that unserved doorbell/timer ARE included
+        unserved_doorbell = Animation.objects.create(
+            source=Animation.Source.DOORBELL,
+            file_path="doorbell2.webp",
+            metadata={},
+        )
+
+        anims = get_animation_list(now)
+        anim_ids = [a.id for a in anims]
+        self.assertIn(
+            unserved_doorbell.id,
+            anim_ids,
+            "Unserved doorbell should be in animation list",
         )

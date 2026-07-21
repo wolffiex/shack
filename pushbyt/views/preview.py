@@ -73,10 +73,19 @@ def choose_anim(anims, now: datetime):
 
 
 def get_animation_list(now):
+    # Build query to get candidate animations
+    # Note: We exclude doorbell/timer from "recently served" to prevent infinite loops
+    # These special animations should only appear if unserved or have upcoming start_time
+    recently_served = Q(served_at__gte=now - timedelta(minutes=1)) & ~Q(
+        source__in=[Animation.Source.DOORBELL, Animation.Source.TIMER]
+    )
+    unserved_realtime = Q(start_time__isnull=True, served_at__isnull=True)
+    upcoming_scheduled = Q(
+        start_time__gt=now, start_time__lte=now + timedelta(seconds=30)
+    )
+
     return Animation.objects.filter(
-        Q(served_at__gte=now - timedelta(minutes=1))
-        | Q(start_time__isnull=True, served_at__isnull=True)
-        | Q(start_time__gt=now, start_time__lte=now + timedelta(seconds=30))
+        recently_served | unserved_realtime | upcoming_scheduled
     ).order_by(
         F("served_at").asc(nulls_last=True),
         F("start_time").asc(nulls_first=True),
