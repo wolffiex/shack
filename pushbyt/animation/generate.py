@@ -31,12 +31,23 @@ def generate():
     logger.info(f"now {now}")
     aligned_time = Animation.align_time(now)
     logger.info(f"aligned {aligned_time}")
+    # Run each check independently so a failure in one (e.g. Spotify auth)
+    # doesn't prevent clock/timer animations from being generated.
     results = [
-        check_spotify(),
-        check_timer(aligned_time),
-        generate_clock(aligned_time),
+        run_check(check_spotify),
+        run_check(check_timer, aligned_time),
+        run_check(generate_clock, aligned_time),
     ]
     return "\n".join(results)
+
+
+def run_check(check, *args):
+    """Run a generation check, logging any failure without crashing the request."""
+    try:
+        return check(*args)
+    except Exception:
+        logger.exception(f"{check.__name__} failed")
+        return f"{check.__name__} failed"
 
 
 def check_spotify():
