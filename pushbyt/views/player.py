@@ -5,6 +5,7 @@ from io import BytesIO
 import logging
 import base64
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import asyncio
 import tempfile
 import aiofiles
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_local_time_str():
-    los_angeles_tz = pytz.timezone("America/Los_Angeles")
+    los_angeles_tz = ZoneInfo("America/Los_Angeles")
     return datetime.now(los_angeles_tz)
 
 
