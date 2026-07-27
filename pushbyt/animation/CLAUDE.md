@@ -31,10 +31,10 @@ Consequences:
 
 ## Verifying visually
 
-Do not eyeball spacing from rendered animations; the phosphor bloom hides geometry.
-If `devtools/` is present in this checkout, `layout_probe.py` renders the raw lit-pixel
-map magnified with a pixel grid, marks the colon and ray origin, and reports
-`gap_left`/`gap_right`. `anim_sheet.py` contact-sheets actual animations.
+Do not eyeball spacing from rendered animations; the phosphor bloom hides the geometry.
+Measure the raw lit-pixel map from `get_time_pixels()` instead — magnified, on a pixel
+grid, counting the blank columns either side of the colon. Judging motion is the other
+way round: only a played-back animation shows whether the clock reads.
 
 ## Timing
 
