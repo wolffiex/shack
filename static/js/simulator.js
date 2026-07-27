@@ -15,7 +15,6 @@ function loadWebPImage() {
     };
     const cacheBuster = Date.now();
 
-    // Append the cache buster to the image URL
     webpImage.src = (userAnimationPath || globalAnimationPath) + `?t=${cacheBuster}`;
   });
 }
@@ -41,21 +40,16 @@ function prepNextImage() {
   setTimeout(() => replaceImage(nextImage), 15000)
 }
 
-// Usage
 loadWebPImage()
   .then((webpImage) => {
-    // WebP image loaded successfully
-    console.log('WebP image loaded');
-    // Append the image to the DOM or perform any other actions
     replaceImage(webpImage)
   })
   .catch((error) => {
-    // Error occurred while loading the WebP image
     console.error('Error loading WebP image:', error);
   });
 
 function generate() {
-  fetch("/pushbyt/command/generate")
+  fetch(document.body.dataset.generateUrl)
     .then(response => response.text())
     .then(text =>
       console.log("Generation result: " + text)

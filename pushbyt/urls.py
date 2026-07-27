@@ -9,6 +9,7 @@ from pushbyt.views import (
     spotify_callback,
     doorbell_ring,
     cleanup,
+    clear_queue,
 )
 
 urlpatterns = [
@@ -21,4 +22,5 @@ urlpatterns = [
     path("doorbell", doorbell_ring, name="doorbell_ring"),
     path("command/generate", generate, name="generate"),
     path("command/cleanup", cleanup, name="cleanup"),
+    path("command/clear-queue", clear_queue, name="clear_queue"),
 ]

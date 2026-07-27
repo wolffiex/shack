@@ -25,18 +25,18 @@ RENDER_DIR = Path("render")
 logger = logging.getLogger(__name__)
 
 
-def generate():
+def generate(clock_source=None):
+    """`clock_source` pins rays/radar instead of choosing randomly."""
     os.makedirs(RENDER_DIR, exist_ok=True)
     now = timezone.now().astimezone(timezone.get_current_timezone())
     logger.info(f"now {now}")
     aligned_time = Animation.align_time(now)
     logger.info(f"aligned {aligned_time}")
-    # Run each check independently so a failure in one (e.g. Spotify auth)
-    # doesn't prevent clock/timer animations from being generated.
+    # Independent so a Spotify auth failure can't block clock/timer animations.
     results = [
         run_check(check_spotify),
         run_check(check_timer, aligned_time),
-        run_check(generate_clock, aligned_time),
+        run_check(generate_clock, aligned_time, clock_source),
     ]
     return "\n".join(results)
 
@@ -106,14 +106,11 @@ def generate_timer_frames(start_time, timer, duration):
     t = start_time
     end_time = t + duration
 
-    # Calculate the time remaining from the start of our sequence
     time_remaining_at_start = timer.created_at + timer.duration - t
 
-    # Generate all frames
     all_frames = []
     all_times = []
 
-    # Create a new generator that starts from our specific time point
     frames = timer_frames(time_remaining_at_start)
 
     while t < end_time:
@@ -123,7 +120,6 @@ def generate_timer_frames(start_time, timer, duration):
             all_times.append(t)
             t += FRAME_TIME
         except StopIteration:
-            # Timer might end during the sequence
             break
 
     return all_frames, all_times
@@ -139,11 +135,9 @@ def generate_timer(start_time, timer):
         f"Generating TIMER animations starting at {segment_start.strftime('%-I:%M:%S')}"
     )
 
-    # Generate frames for full segment plus buffer
     duration = SEGMENT_TIME + ANIM_DURATION
     all_frames, all_times = generate_timer_frames(segment_start, timer, duration)
 
-    # No frames were generated (timer might be too short)
     if not all_frames:
         return "No timer frames generated"
 
@@ -151,14 +145,11 @@ def generate_timer(start_time, timer):
     frames_per_anim = int(ANIM_DURATION.total_seconds() / FRAME_TIME.total_seconds())
     frames_per_step = int(ANIM_STEP.total_seconds() / FRAME_TIME.total_seconds())
 
-    # Make sure we have enough frames for a complete animation
     max_start_idx = len(all_frames) - frames_per_anim
 
     for i in range(0, max_start_idx + 1, frames_per_step):
         anim_frames = all_frames[i : i + frames_per_anim]
         anim_start_time = all_times[i]
-
-        # Check if this timer is approaching completion (important)
         important = timer.created_at + timer.duration - anim_start_time < timedelta(
             seconds=90
         )
@@ -183,7 +174,6 @@ def generate_timer(start_time, timer):
             " %-I:%M:%S"
         )
     except django_db_utils.IntegrityError as e:
-        # Log the error but don't crash
         logger.warning(
             f"Some timer animations were not created due to uniqueness constraints: {e}"
         )
@@ -191,56 +181,25 @@ def generate_timer(start_time, timer):
 
 
 def get_segment_start(start_time, *sources):
-    """
-    Determine the appropriate start time for a new animation segment based on existing coverage.
-
-    This function analyzes the current animation timeline and determines whether new
-    animations need to be generated, and if so, at what time they should start. It
-    implements a just-in-time generation strategy that:
-
-    1. Only generates new animations when we don't have sufficient future coverage
-    2. Ensures animations start at aligned time slots (0, 10, 20, 30, 40, or 50 seconds)
-    3. Prevents redundant generation when we already have animations extending into the future
-    4. Avoids gaps in the animation timeline for a smooth viewing experience
-    5. Respects the source types requested (e.g., RAYS, RADAR, TIMER)
-
-    The function first checks for the latest future animation matching the requested sources.
-    If this animation extends far enough into the future (SEGMENT_TIME = 90s), it returns None
-    indicating no new animations are needed. Otherwise, it calculates the appropriate next
-    time slot after the latest animation to ensure continuous coverage.
-
-    Args:
-        start_time: The base time to consider (usually aligned current time)
-        *sources: Animation source types to filter by (e.g., RAYS, RADAR)
-
-    Returns:
-        datetime: The time when the next animation segment should start
-        None: If we already have sufficient animation coverage into the future
-
-    This function is used by both generate_clock and generate_timer to coordinate
-    animation generation and prevent duplication while ensuring continuous playback.
-    """
+    """Where the next segment of `sources` should start, or None if the next
+    SEGMENT_TIME is already covered. Generation is just-in-time: callers ask
+    every tick and mostly get None."""
     now = timezone.now()
 
-    # Find the latest animation time for these sources, starting from start_time
     future_max = Animation.objects.filter(
         start_time__gte=start_time, source__in=sources
     ).aggregate(max_start_time=Max("start_time"))["max_start_time"]
 
-    # If we don't have any future animations, start at the provided start_time
     if not future_max:
         logger.info(
             f"No existing animations found, starting at {start_time.strftime('%-I:%M:%S')}"
         )
         return start_time
 
-    # Make sure time is timezone-aware
     future_max = future_max.astimezone(timezone.get_current_timezone())
 
-    # Calculate how far our animations extend into the future
     time_coverage = future_max - now
 
-    # If we already have enough future coverage, no need for more animations
     if time_coverage >= SEGMENT_TIME:
         logger.info(
             f"Sufficient animations until {future_max.strftime('%-I:%M:%S')} "
@@ -248,10 +207,8 @@ def get_segment_start(start_time, *sources):
         )
         return None
 
-    # Start generating new animations from the next time slot after the latest one
     next_start = Animation.next_time(future_max)
 
-    # Ensure the next_start is after the max_future time
     if next_start <= future_max:
         next_start = future_max + timedelta(seconds=10)
         next_start = Animation.align_time(next_start)
@@ -272,15 +229,12 @@ def generate_clock_frames(start_time: datetime, duration: timedelta, source):
     t = start_time
     end_time = t + duration
 
-    # Choose the appropriate animation generator based on the selected source
     frames_generator = (
         clock_radar(t) if source == Animation.Source.RADAR else clock_rays()
     )
 
-    # Start the generator
     next(frames_generator)
 
-    # Generate all frames
     all_frames = []
     all_times = []
     while t < end_time:
@@ -299,7 +253,6 @@ def slice_into_animations(
     frames_per_step = int(step.total_seconds() / FRAME_TIME.total_seconds())
 
     animations = []
-    # Make sure we have enough frames for a complete animation
     max_start_idx = len(all_frames) - frames_per_anim
 
     for i in range(0, max_start_idx + 1, frames_per_step):
@@ -323,27 +276,22 @@ def slice_into_animations(
     return animations
 
 
-def generate_clock(start_time: datetime):
+def generate_clock(start_time: datetime, source: Animation.Source | None = None):
     segment_start = get_segment_start(start_time, *CLOCK_SOURCES)
     if not segment_start:
         logger.info("Clock animations: Sufficient future coverage exists")
         return "Already have clock"
 
-    # Randomly choose between rays or radar
-    source = random.choice(CLOCK_SOURCES)
+    source = source or random.choice(CLOCK_SOURCES)
     logger.info(
         f"Generating {source.value} animations starting at {segment_start.strftime('%-I:%M:%S')}"
     )
 
-    # Generate frames for 90 seconds plus buffer to ensure we have enough frames
-    # for the last complete animation
     duration = SEGMENT_TIME + ANIM_DURATION
     all_frames, all_times = generate_clock_frames(segment_start, duration, source)
 
-    # Slice into overlapping animations
     animations = slice_into_animations(all_frames, all_times, source)
 
-    # Save to database - handle potential uniqueness constraint errors
     try:
         new_anims = Animation.objects.bulk_create(animations)
         return (
@@ -351,7 +299,6 @@ def generate_clock(start_time: datetime):
             + segment_start.strftime(" %-I:%M:%S")
         )
     except django_db_utils.IntegrityError as e:
-        # Log the error but don't crash
         logger.warning(
             f"Some animations were not created due to uniqueness constraints: {e}"
         )

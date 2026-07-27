@@ -3,6 +3,7 @@ import math
 import random
 from datetime import datetime
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Generator
 
 
@@ -21,40 +22,84 @@ CENTER = Point(SCALE_FACTOR * WIDTH / 2, SCALE_FACTOR * HEIGHT / 2)
 SCALED_WIDTH, SCALED_HEIGHT = SCALE_FACTOR * WIDTH, SCALE_FACTOR * HEIGHT
 
 
-def get_time_pixels(time_str):
+FONT_PATH = "./fonts/pixel12x10/Pixel12x10-v1.1.0.ttf"
+
+# Colon drawn by hand so its upper block can stay unlit and serve as ray origin.
+DOT_SIZE = 2
+UPPER_DOT_OFFSET = 3
+LOWER_DOT_OFFSET = 9
+COLON_GAP = 2
+
+
+@lru_cache(maxsize=8)
+def get_time_pixels(time_str: str) -> tuple[tuple[tuple[int, int], ...], Point]:
+    """Lit pixels and ray origin, laid out around a colon pinned to center.
+
+    Centering the whole string would slide the colon ~8px on single-digit
+    hours, dragging the origin with it. The upper block is left unlit: it is
+    the origin, drawn by the rays passing through it.
+    """
     image = Image.new("RGB", (WIDTH, HEIGHT), color="black")
-    font = ImageFont.truetype("./fonts/pixel12x10/Pixel12x10-v1.1.0.ttf", 16)
+    font = get_font()
     draw = ImageDraw.Draw(image)
-    text_position = (0, 0)
-    bbox = draw.textbbox(text_position, time_str, font=font)
-    left, top, right, bottom = bbox
-    text_width = right - left
-    text_height = bottom - top
 
-    # Calculate the new coordinates to center the bounding box
-    new_left = (WIDTH - text_width) // 2
-    new_top = (HEIGHT - text_height) // 2
-    draw.text((new_left, new_top), time_str, font=font, fill="white")
+    hours, _, minutes = time_str.partition(":")
+    dot_left = (WIDTH - DOT_SIZE) // 2
+    dot_right = dot_left + DOT_SIZE - 1
+
+    bbox = draw.textbbox((0, 0), time_str, font=font)
+    top = (HEIGHT - (bbox[3] - bbox[1])) // 2
+    dot_top = top + LOWER_DOT_OFFSET
+
+    draw.text(
+        (dot_left - COLON_GAP - 1 - ink_bounds(hours)[1], top),
+        hours,
+        font=font,
+        fill="white",
+    )
+    draw.text(
+        (dot_right + 1 + COLON_GAP - ink_bounds(minutes)[0], top),
+        minutes,
+        font=font,
+        fill="white",
+    )
+    draw.rectangle([dot_left, dot_top, dot_right, dot_top + DOT_SIZE - 1], fill="white")
+
     pixels = image.load()
-    return [
+    lit = tuple(
         (x, y) for x in range(WIDTH) for y in range(HEIGHT) if pixels[x, y] != (0, 0, 0)
-    ]
+    )
+    return lit, Point(
+        SCALE_FACTOR * (dot_left + DOT_SIZE / 2),
+        SCALE_FACTOR * (top + UPPER_DOT_OFFSET + DOT_SIZE / 2),
+    )
 
 
-frames = [Image.new("RGB", (WIDTH, HEIGHT), color="black")]
+@lru_cache(maxsize=1)
+def get_font() -> ImageFont.FreeTypeFont:
+    return ImageFont.truetype(FONT_PATH, 16)
+
+
+@lru_cache(maxsize=None)
+def ink_bounds(text: str) -> tuple[int, int]:
+    """Inclusive x range of a string's ink. font.getbbox() would give the
+    advance box, bearings included; the mask bbox is the ink."""
+    bbox = get_font().getmask(text).getbbox()
+    return (bbox[0], bbox[2] - 1) if bbox else (0, 0)
 
 
 @dataclass
 class Ray:
     angle: float
+    origin: Point = CENTER
     _start: float = 0.0
     _end: float = 0.01
     color = (255, 150, 150)
 
     @classmethod
-    def new(cls):
+    def new(cls, origin: Point = CENTER):
         angle = random.uniform(0, 2 * math.pi)
-        return Ray(angle)
+        return Ray(angle, origin)
 
     def to_line(self):
         return [self.start.to_tuple(), self.end.to_tuple()]
@@ -82,8 +127,8 @@ class Ray:
         return self._to_point(self._end)
 
     def _to_point(self, percent):
-        x = CENTER.x + SCALED_WIDTH * percent * math.cos(self.angle)
-        y = CENTER.y + SCALED_WIDTH * percent * math.sin(self.angle)
+        x = self.origin.x + SCALED_WIDTH * percent * math.cos(self.angle)
+        y = self.origin.y + SCALED_WIDTH * percent * math.sin(self.angle)
         return Point(x, y)
 
 
@@ -96,9 +141,9 @@ def clock_rays() -> Generator[Image.Image, datetime, None]:
     while True:
         t = yield next_frame
         time_str = t.strftime("%-I:%M")
-        all_time_pixels = get_time_pixels(time_str)
+        all_time_pixels, ray_origin = get_time_pixels(time_str)
         for _ in range(random.randint(1, 4)):
-            rays.append(Ray.new())
+            rays.append(Ray.new(ray_origin))
 
         image = Image.new("RGB", (SCALED_WIDTH, SCALED_HEIGHT), color="black")
         draw = ImageDraw.Draw(image)
@@ -106,7 +151,6 @@ def clock_rays() -> Generator[Image.Image, datetime, None]:
             draw.line(ray.to_line(), fill=ray.color, width=SCALE_FACTOR)
             ray.animate()
 
-        # Downsample the high-resolution image to the desired size
         image_lo = image.resize((WIDTH, HEIGHT), resample=Image.LANCZOS)
         image_pixels = image_lo.load()
         time_pixels = time_image.load()
@@ -116,7 +160,7 @@ def clock_rays() -> Generator[Image.Image, datetime, None]:
             )
 
         next_frame = ImageChops.screen(image_lo, time_image)
-        # fade time image
+        # Phosphor decay: a glyph stays lit ~2.5s after a ray crosses it.
         time_image = Image.blend(time_image, black_image, alpha=0.04)
         rays = [ray for ray in rays if ray.is_in_bounds()]
 

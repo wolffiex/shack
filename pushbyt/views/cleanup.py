@@ -1,11 +1,27 @@
 from pushbyt.models import Animation
 import logging
 from django.http import HttpResponse, HttpResponseServerError
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from datetime import timedelta
+from urllib.parse import urlencode
 import subprocess
 
 logger = logging.getLogger(__name__)
+
+
+@require_POST
+def clear_queue(request):
+    """Drop queued animations so the next generate rebuilds immediately.
+    POST+redirect so a reload doesn't re-run it."""
+    deleted, _ = Animation.queued().delete()
+    logger.info(f"Cleared {deleted} queued animations")
+
+    source = request.POST.get("source", "")
+    query = f"?{urlencode({'source': source})}" if source else ""
+    return redirect(reverse("simulator") + query)
 
 
 def cleanup(_):

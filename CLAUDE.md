@@ -13,6 +13,15 @@
 
 Note: This project does not use mypy for type checking despite having type annotations in the code.
 
+## Dependencies
+- `webpmux` (system package `webp`) is required — every animation is encoded by shelling out to it (`pushbyt/animation/util.py`). Generation fails with `webpmux: not found` if it's missing.
+- Postgres is the production backend. Nothing in the ORM layer needs it; the only Postgres-specific code is two hardcoded `psycopg2.connect()` calls to a separate `monitoring` TimescaleDB in `ha/views/`.
+- `HA_ACCESS_TOKEN` is read at import time in `ha/utils.py` and `ha/views/dashboard.py` — Django will not start without it set.
+
+## Subsystem notes
+- `pushbyt/animation/CLAUDE.md` — how clock animations are built, and what's easy to get wrong
+- `pushbyt/views/CLAUDE.md` — request flow and the generation/serving loop
+
 ## Style Guide
 - Type annotations: Use typing for function parameters and return values
 - Imports: Group standard library, then Django, then third-party, then local imports
@@ -60,6 +69,10 @@ Note: This project does not use mypy for type checking despite having type annot
 - Uses cache busting with timestamp query parameters for fresh content
 - Developer workflow: Make changes → View in simulator → Deploy to device
 - Production debugging: Check logs for animation selection and generation patterns
+- Controls are plain server-rendered Django forms (no client state): a clock style
+  selector (`?source=rays|radar`, pins generation) and a Clear queue button. After
+  changing animation code, clear the queue or up to 90s of already-rendered frames
+  will play first.
 
 ## Home Assistant Integration
 - Interaction with Home Assistant via REST API (`ha_api_url = f"http://{HA_HOST}:8123/api"`)

@@ -22,10 +22,25 @@
   </style>
 </head>
 
-<body>
+<body data-generate-url="{% url 'generate' %}{% if clock_source %}?source={{ clock_source }}{% endif %}">
   <h1>Tidbyt simulator</h1>
   <div id="container">
   </div>
+  <form method="get">
+    <label for="source">Clock style</label>
+    <select id="source" name="source">
+      <option value=""{% if not clock_source %} selected{% endif %}>Random</option>
+      {% for s in clock_sources %}
+      <option value="{{ s.value }}"{% if s.value == clock_source %} selected{% endif %}>{{ s.label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Apply</button>
+  </form>
+  <form method="post" action="{% url 'clear_queue' %}">
+    {% csrf_token %}
+    <input type="hidden" name="source" value="{{ clock_source }}"/>
+    <button type="submit">Clear queue</button>
+  </form>
   <div>
     <input id="animationPath" type="text" placeholder="animation path"/>
     <button id="animationPathButton">Set</button>

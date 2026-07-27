@@ -64,14 +64,16 @@ class Animation(models.Model):
             .first()
         )
 
+    @classmethod
+    def queued(cls):
+        """Scheduled but not yet shown. Real-time animations carry no
+        start_time and are not queue."""
+        return cls.objects.filter(served_at__isnull=True, start_time__isnull=False)
+
     @staticmethod
     def align_time(t: datetime) -> datetime:
-        """
-        Align a datetime to the nearest 12-second boundary (0, 12, 24, 36, 48).
-
-        This aligns with the device polling interval of ~12 seconds, ensuring
-        smooth animation transitions.
-        """
+        """Align to the next 12-second boundary, matching the device's poll
+        interval."""
         seconds = [0, 12, 24, 36, 48]
         s = 0
         while (t.second + s) % 60 not in seconds:

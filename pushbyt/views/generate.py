@@ -2,6 +2,7 @@ from django.db import transaction, OperationalError
 from django.http import HttpResponse
 from pushbyt.models import Lock
 from pushbyt.animation import generate as generate_animation
+from pushbyt.animation.generate import CLOCK_SOURCES
 from django.utils import timezone
 from pushbyt.models import Animation
 from datetime import timedelta
@@ -11,14 +12,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def generate(_):
+def parse_clock_source(request):
+    """Optional ?source=rays|radar; None means random. Bad values are ignored,
+    not rejected -- this is a background command."""
+    requested = request.GET.get("source")
+    if not requested:
+        return None
+    if requested not in {s.value for s in CLOCK_SOURCES}:
+        logger.warning(f"Ignoring unusable clock source {requested!r}")
+        return None
+    return Animation.Source(requested)
+
+
+def generate(request):
     lock_name = "generate"
 
     try:
-        # First, ensure the lock record exists (outside the transaction)
+        # Outside the transaction, so the row exists to be locked below.
         Lock.objects.get_or_create(name=lock_name, defaults={"acquired": False})
 
-        # Now try to acquire the lock in a separate transaction
         with transaction.atomic():
             try:
                 lock = Lock.objects.select_for_update(nowait=True).get(name=lock_name)
@@ -28,7 +40,6 @@ def generate(_):
                 lock.acquired = True
                 lock.save()
             except Lock.DoesNotExist:
-                # This shouldn't happen since we created it above, but just in case
                 logger.error("Lock disappeared during acquisition - race condition")
                 return HttpResponse("Lock acquisition error", status=500)
     except OperationalError:
@@ -40,7 +51,7 @@ def generate(_):
     result = "Exception"
     try:
         if is_running():
-            result = generate_animation()
+            result = generate_animation(parse_clock_source(request))
         else:
             result = "Not running"
     finally:
@@ -57,5 +68,4 @@ def is_running() -> bool:
 
     one_minute_ago = now - timedelta(minutes=1)
 
-    # If we haven't gotten a request in the last minute, then don't generate
     return Animation.objects.filter(served_at__gt=one_minute_ago).exists()
